@@ -1,7 +1,7 @@
 [project]
-name = "local-streaming-pipeline"
-version = "0.1.0"
-description = "A simple local streaming pipeline for learning"
+name = "cryptopulse"
+version = "1.0.0"
+description = "CryptoPulse: Real-Time Crypto Tick Streaming, Stateful PySpark Analytics & ClickHouse OLAP Pipeline"
 requires-python = ">=3.10"
 
 # =============================================================================
