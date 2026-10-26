@@ -1771,3 +1771,222 @@ body.dark-theme .btn-action-primary:hover {
     color: var(--color-green);
 }
 
+/* =============================================================================
+   MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM STRIP & TERMINAL
+   ============================================================================= */
+
+.spread-pulse-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.spread-pulse-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+}
+
+.spread-pulse-card:hover {
+    border-color: #3B82F6;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.08);
+}
+
+.spread-pulse-card.india:hover {
+    border-color: #F59E0B;
+    box-shadow: 0 8px 20px rgba(245, 158, 11, 0.08);
+}
+
+.spread-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.spread-card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.spread-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.spread-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+}
+
+.spread-sub {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.spread-status-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.spread-status-tag.active {
+    background: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.spread-status-tag.india {
+    background: rgba(245, 158, 11, 0.15);
+    color: #D97706;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.spread-metrics-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    background: var(--bg-card-subtle);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+}
+
+.spread-metric-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sm-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.sm-val {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.sm-val.fee {
+    color: var(--text-secondary);
+}
+
+.sm-val.net {
+    color: #64748B;
+}
+
+.sm-val.net.positive {
+    color: #10B981;
+}
+
+.sm-val.premium {
+    color: #D97706;
+}
+
+.jump-spread-btn {
+    border: none;
+    background: #3B82F6;
+    color: #FFFFFF;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.jump-spread-btn:hover {
+    background: #2563EB;
+    transform: translateY(-1px);
+}
+
+.jump-spread-btn.india {
+    background: #D97706;
+}
+
+.jump-spread-btn.india:hover {
+    background: #B45309;
+}
+
+.regime-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.regime-badge.red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.regime-badge.amber {
+    background: rgba(245, 158, 11, 0.12);
+    color: #D97706;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.regime-badge.green {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.regime-badge.blue {
+    background: rgba(59, 130, 246, 0.12);
+    color: #3B82F6;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.direction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--bg-card-subtle);
+    border: 1px solid var(--border-card);
+    color: var(--text-primary);
+}
+
+@media (max-width: 1024px) {
+    .spread-pulse-strip {
+        grid-template-columns: 1fr;
+    }
+    .spread-metrics-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+

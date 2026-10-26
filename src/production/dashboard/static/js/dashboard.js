@@ -15,6 +15,8 @@ let isDarkMode = false;
 let showEma9 = false;
 let showBollinger = false;
 let cachedOrderFlow = {};
+let cachedArbitrage = {};
+let cachedIndiaPremium = {};
 
 // Live Market Cache
 let liveMarket = {
@@ -763,12 +765,14 @@ function updateAnalyticsMatrixTable() {
 
 async function fetchLivePipelineData() {
     try {
-        const [resLatest, resRecent, resAlerts, resTelemetry, resOrderFlow] = await Promise.allSettled([
+        const [resLatest, resRecent, resAlerts, resTelemetry, resOrderFlow, resArbitrage, resIndiaPremium] = await Promise.allSettled([
             fetch(`/api/latest?symbols=${SYMBOLS_PARAM}`),
             fetch(`/api/recent?symbols=${SYMBOLS_PARAM}&limit=8`),
             fetch(`/api/alerts?limit=5`),
             fetch(`/api/telemetry`),
-            fetch(`/api/order-flow`)
+            fetch(`/api/order-flow`),
+            fetch('/api/arbitrage'),
+            fetch('/api/india-premium')
         ]);
 
         let hasLiveBackend = false;
@@ -821,6 +825,24 @@ async function fetchLivePipelineData() {
                 cachedOrderFlow = data;
                 updateOrderFlowWidget();
                 updateAnalyticsMatrixTable();
+            }
+        }
+
+        // Process Cross-Exchange Arbitrage (Coinbase vs Kraken)
+        if (resArbitrage.status === 'fulfilled' && resArbitrage.value.ok) {
+            const data = await resArbitrage.value.json();
+            if (data && typeof data === 'object') {
+                cachedArbitrage = data;
+                updateArbitrageUI();
+            }
+        }
+
+        // Process India Regulatory & Liquidity Premium (CoinDCX vs ECB Global)
+        if (resIndiaPremium.status === 'fulfilled' && resIndiaPremium.value.ok) {
+            const data = await resIndiaPremium.value.json();
+            if (data && typeof data === 'object') {
+                cachedIndiaPremium = data;
+                updateIndiaPremiumUI();
             }
         }
 
@@ -922,6 +944,7 @@ function selectCardSymbol(sym) {
 
     resetChartWithNewSymbol(sym);
     updateOneMinuteAnalytics();
+    updateArbitragePulseStrip();
     showToast(`Active Asset: ${sym}-USD`);
 }
 
@@ -1042,6 +1065,10 @@ function setSidebarSection(section) {
         'pipeline-health': {
             title: 'Pipeline Health & Telemetry',
             sub: 'Kafka KRaft, Spark Streaming, ClickHouse OLAP & FastAPI'
+        },
+        'arbitrage-spreads': {
+            title: 'Multi-Exchange Arbitrage & India Premium',
+            sub: 'Cross-Venue Event-Time Stream Joins & Structural Regulatory Spreads'
         }
     };
 
@@ -1067,6 +1094,9 @@ function setSidebarSection(section) {
         renderDedicatedAlertsPage();
     } else if (section === 'pipeline-health') {
         updatePipelineHealth(telemetryMetrics);
+    } else if (section === 'arbitrage-spreads') {
+        renderArbitrageMatrix();
+        renderIndiaPremiumMatrix();
     }
 }
 
@@ -1350,11 +1380,206 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAnomalyAlertsTable(cachedAlerts);
     updatePipelineHealth(telemetryMetrics);
     updateAnalyticsMatrixTable();
+    updateArbitragePulseStrip();
+    renderArbitrageMatrix();
+    renderIndiaPremiumMatrix();
 
     // Start Real-Time Live Ingestion & Polling Loop
     fetchLivePipelineData();
     setInterval(fetchLivePipelineData, 2500);
 });
+
+// =============================================================================
+// MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM MATRIX RENDERING
+// =============================================================================
+
+function updateArbitrageUI() {
+    updateArbitragePulseStrip();
+    renderArbitrageMatrix();
+}
+
+function updateIndiaPremiumUI() {
+    updateArbitragePulseStrip();
+    renderIndiaPremiumMatrix();
+}
+
+function updateArbitragePulseStrip() {
+    const sym = (selectedSymbol === 'INR' || !selectedSymbol) ? 'BTC' : selectedSymbol;
+
+    // 1. Cross-Exchange Arbitrage Card (Coinbase vs Kraken)
+    const arbPairs = cachedArbitrage.pairs || {};
+    const arb = arbPairs[sym];
+    const arbActiveSymEl = document.getElementById('arbActiveSym');
+    const arbGrossSpreadEl = document.getElementById('arbGrossSpreadVal');
+    const arbNetProfitEl = document.getElementById('arbNetProfitVal');
+    const arbStatusTagEl = document.getElementById('arbStatusTag');
+
+    if (arbActiveSymEl) arbActiveSymEl.textContent = sym;
+
+    if (arb) {
+        if (arbGrossSpreadEl) {
+            arbGrossSpreadEl.textContent = `$${arb.absolute_spread.toFixed(2)} (${arb.gross_spread_pct.toFixed(3)}%)`;
+        }
+        if (arbNetProfitEl) {
+            const netSign = arb.net_profit_pct > 0 ? '+' : '';
+            arbNetProfitEl.textContent = `${netSign}${arb.net_profit_pct.toFixed(3)}% (${arb.is_arbitrage_active ? 'In Profit' : 'Below Hurdle'})`;
+            arbNetProfitEl.className = `sm-val ${arb.is_arbitrage_active ? 'positive' : 'negative'}`;
+        }
+        if (arbStatusTagEl) {
+            if (arb.is_arbitrage_active) {
+                arbStatusTagEl.textContent = 'Active Window';
+                arbStatusTagEl.className = 'spread-status-tag active-opp';
+            } else {
+                arbStatusTagEl.textContent = 'Market Efficient';
+                arbStatusTagEl.className = 'spread-status-tag inside-hurdle';
+            }
+        }
+    }
+
+    // 2. India Regulatory & Liquidity Premium Card (CoinDCX vs ECB Benchmark)
+    const indiaPairs = cachedIndiaPremium.pairs || {};
+    const ind = indiaPairs[sym];
+    const indiaActiveSymEl = document.getElementById('indiaActiveSym');
+    const indiaCoinDCXEl = document.getElementById('indiaCoinDCXVal');
+    const indiaGlobalImpliedEl = document.getElementById('indiaGlobalImpliedVal');
+    const indiaPremiumPctEl = document.getElementById('indiaPremiumPctVal');
+    const indiaPremiumRegimeEl = document.getElementById('indiaPremiumRegime');
+
+    if (indiaActiveSymEl) indiaActiveSymEl.textContent = sym;
+
+    if (ind) {
+        if (indiaCoinDCXEl) {
+            indiaCoinDCXEl.textContent = `₹${Math.round(ind.coindcx_price_inr).toLocaleString('en-IN')}`;
+        }
+        if (indiaGlobalImpliedEl) {
+            indiaGlobalImpliedEl.textContent = `₹${Math.round(ind.global_implied_inr).toLocaleString('en-IN')}`;
+        }
+        if (indiaPremiumPctEl) {
+            const sign = ind.premium_pct >= 0 ? '+' : '';
+            const inrDiff = Math.round(ind.premium_inr);
+            const inrFormatted = (Math.abs(inrDiff) >= 100000) 
+                ? `₹${(inrDiff / 100000).toFixed(2)}L`
+                : `₹${inrDiff.toLocaleString('en-IN')}`;
+            indiaPremiumPctEl.textContent = `${sign}${ind.premium_pct.toFixed(2)}% (${inrFormatted})`;
+            indiaPremiumPctEl.className = `sm-val ${ind.premium_pct >= 0 ? 'positive' : 'negative'}`;
+        }
+        if (indiaPremiumRegimeEl) {
+            indiaPremiumRegimeEl.textContent = ind.regime || 'Domestic Premium';
+            indiaPremiumRegimeEl.className = `spread-status-tag india ${ind.regime_color || 'amber'}`;
+        }
+    }
+}
+
+function renderArbitrageMatrix() {
+    const tbody = document.getElementById('arbitrageMatrixBody');
+    if (!tbody) return;
+
+    const pairs = cachedArbitrage.pairs;
+    if (!pairs || Object.keys(pairs).length === 0) return;
+
+    // Update KPIs
+    const effEl = document.getElementById('kpiEfficiency');
+    const durEl = document.getElementById('kpiDuration');
+    const oppsEl = document.getElementById('kpiActiveOpps');
+
+    const metrics = cachedArbitrage.metrics || {};
+    if (effEl) effEl.textContent = `${metrics.efficiency_pct || 99.1}%`;
+    if (durEl) durEl.textContent = `${metrics.avg_duration_sec || 1.42}s`;
+
+    let activeCount = 0;
+    const trackedSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LTC'];
+
+    tbody.innerHTML = trackedSymbols.map(sym => {
+        const item = pairs[sym];
+        if (!item) return '';
+
+        if (item.is_arbitrage_active) activeCount++;
+
+        const isAct = item.is_arbitrage_active;
+        const netSign = item.net_profit_pct > 0 ? '+' : '';
+        const netClass = isAct ? 'positive' : 'negative';
+
+        return `
+            <tr>
+                <td><span class="sym-badge">${sym}-USD</span></td>
+                <td><strong style="color:var(--text-primary);">$${item.coinbase_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
+                <td><strong style="color:var(--text-primary);">$${item.kraken_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
+                <td>$${item.absolute_spread.toFixed(2)}</td>
+                <td>${item.gross_spread_pct.toFixed(3)}%</td>
+                <td><span style="font-family: monospace; color: var(--text-secondary);">~118 ms</span></td>
+                <td><span style="color: #F59E0B;">0.35%</span></td>
+                <td>
+                    <span class="trend-badge ${netClass}" style="font-weight: 700;">
+                        ${netSign}${item.net_profit_pct.toFixed(3)}%
+                    </span>
+                </td>
+                <td>
+                    <span class="direction-badge" style="background: rgba(99, 102, 241, 0.1); color: #818CF8; border: 1px solid rgba(99, 102, 241, 0.2); padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; white-space: nowrap;">
+                        ${item.direction}
+                    </span>
+                </td>
+                <td>
+                    <span class="spread-status-tag ${isAct ? 'active-opp' : 'inside-hurdle'}" style="font-size: 0.72rem; padding: 3px 8px;">
+                        ${isAct ? 'Active Opportunity' : 'Inside Hurdle'}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    if (oppsEl) oppsEl.textContent = `${activeCount} / 6`;
+}
+
+function renderIndiaPremiumMatrix() {
+    const tbody = document.getElementById('indiaPremiumMatrixBody');
+    if (!tbody) return;
+
+    const pairs = cachedIndiaPremium.pairs;
+    if (!pairs || Object.keys(pairs).length === 0) return;
+
+    const fxRate = cachedIndiaPremium.fx_rate || 86.85;
+    const termFxEl = document.getElementById('termFxRate');
+    if (termFxEl) termFxEl.textContent = fxRate.toFixed(2);
+
+    const trackedSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LTC'];
+
+    tbody.innerHTML = trackedSymbols.map(sym => {
+        const item = pairs[sym];
+        if (!item) return '';
+
+        const sign = item.premium_pct >= 0 ? '+' : '';
+        const diffSign = item.premium_inr >= 0 ? '+' : '';
+        const isPos = item.premium_pct >= 0;
+
+        return `
+            <tr>
+                <td><span class="sym-badge" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.3);">${sym}-INR</span></td>
+                <td><strong style="color:var(--text-primary);">₹${Math.round(item.coindcx_price_inr).toLocaleString('en-IN')}</strong></td>
+                <td>$${item.global_price_usd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                <td>₹${Math.round(item.global_implied_inr).toLocaleString('en-IN')}</td>
+                <td style="color: ${isPos ? '#10B981' : '#EF4444'}; font-weight: 600;">
+                    ${diffSign}₹${Math.round(item.premium_inr).toLocaleString('en-IN')}
+                </td>
+                <td>
+                    <span class="trend-badge ${isPos ? 'positive' : 'negative'}" style="font-weight: 700;">
+                        ${sign}${item.premium_pct.toFixed(2)}%
+                    </span>
+                </td>
+                <td>
+                    <span class="regime-badge ${item.regime_color || 'amber'}" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 4px;">
+                        ${item.regime}
+                    </span>
+                </td>
+                <td>
+                    <span style="font-size: 0.7rem; color: #EF4444; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        Capital Control Locked (1% TDS + LRS)
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
 
 // Export all functions to window for robust inline handler binding
 window.scrollToDashboard = scrollToDashboard;
@@ -1388,4 +1613,9 @@ window.fetchLivePipelineData = fetchLivePipelineData;
 window.toggleEma9 = toggleEma9;
 window.toggleBollingerBands = toggleBollingerBands;
 window.updateOrderFlowWidget = updateOrderFlowWidget;
+window.updateArbitrageUI = updateArbitrageUI;
+window.updateIndiaPremiumUI = updateIndiaPremiumUI;
+window.updateArbitragePulseStrip = updateArbitragePulseStrip;
+window.renderArbitrageMatrix = renderArbitrageMatrix;
+window.renderIndiaPremiumMatrix = renderIndiaPremiumMatrix;
 
