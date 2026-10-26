@@ -997,33 +997,172 @@ body.dark-theme .floating-price-tooltip {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(2, 1fr);
-    gap: 16px;
-    height: 100%;
-    padding: 10px 0;
+    gap: 12px;
+    padding: 6px 0;
 }
 
 .metric-block {
     background: var(--bg-card-subtle);
     border: 1px solid var(--border-card);
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 11px 14px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .metric-label {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 500;
     color: var(--text-muted);
 }
 
 .metric-value {
-    font-size: 1.15rem;
+    font-size: 1.08rem;
     font-weight: 700;
     color: var(--text-primary);
     font-family: var(--font-mono);
+}
+
+/* =============================================================================
+   ORDER FLOW IMBALANCE (LEE-READY 1991) WIDGET
+   ============================================================================= */
+
+.order-flow-widget {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: var(--bg-card-subtle);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.order-flow-widget:hover {
+    border-color: #94A3B8;
+}
+
+.order-flow-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.order-flow-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.order-flow-heading {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.order-flow-sub {
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.sentiment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.2px;
+}
+
+.sentiment-badge.bullish {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.sentiment-badge.bearish {
+    background: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.sentiment-badge.neutral {
+    background: rgba(148, 163, 184, 0.12);
+    color: #64748B;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.flow-progress-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+    display: flex;
+    overflow: hidden;
+    margin-bottom: 9px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.flow-progress-fill {
+    height: 100%;
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flow-progress-fill.buy {
+    background: linear-gradient(90deg, #10B981, #059669);
+}
+
+.flow-progress-fill.sell {
+    background: linear-gradient(90deg, #DC2626, #EF4444);
+}
+
+.flow-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.flow-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.flow-stat-item strong {
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.flow-stat-qty {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+}
+
+.flow-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.flow-dot.green {
+    background: #10B981;
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.6);
+}
+
+.flow-dot.red {
+    background: #EF4444;
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.6);
 }
 
 /* =============================================================================

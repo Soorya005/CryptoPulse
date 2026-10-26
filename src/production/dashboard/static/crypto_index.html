@@ -576,6 +576,46 @@
                             <span class="metric-value" id="valTickCount">1,284</span>
                         </div>
                     </div>
+
+                    <!-- Real-Time Order Flow Imbalance (Lee-Ready 1991) Widget -->
+                    <div class="order-flow-widget" id="orderFlowWidget">
+                        <div class="order-flow-top">
+                            <div class="order-flow-meta">
+                                <span class="order-flow-heading">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                    </svg>
+                                    Order Flow Imbalance
+                                </span>
+                                <span class="order-flow-sub" title="Lee-Ready (1991) trade classification tick rule">Lee-Ready (1991) Microstructure</span>
+                            </div>
+                            <span class="sentiment-badge bullish" id="orderFlowSentimentBadge">
+                                <span class="sentiment-icon">▲</span>
+                                <span id="orderFlowSentimentText">Bullish +13.8%</span>
+                            </span>
+                        </div>
+
+                        <!-- Bi-directional Buyer / Seller Volume Progress Bar -->
+                        <div class="flow-progress-track">
+                            <div class="flow-progress-fill buy" id="flowProgressBuy" style="width: 56.9%;" title="Buyer-Initiated Volume"></div>
+                            <div class="flow-progress-fill sell" id="flowProgressSell" style="width: 43.1%;" title="Seller-Initiated Volume"></div>
+                        </div>
+
+                        <div class="flow-stats-row">
+                            <div class="flow-stat-item">
+                                <span class="flow-dot green"></span>
+                                <span class="flow-stat-name">Buyer:</span>
+                                <strong id="flowBuyPct">56.9%</strong>
+                                <span class="flow-stat-qty" id="flowBuyQty">(14.23 BTC)</span>
+                            </div>
+                            <div class="flow-stat-item end">
+                                <span class="flow-dot red"></span>
+                                <span class="flow-stat-name">Seller:</span>
+                                <strong id="flowSellPct">43.1%</strong>
+                                <span class="flow-stat-qty" id="flowSellQty">(10.77 BTC)</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -923,6 +963,7 @@
                                     <th>1m Max</th>
                                     <th>1m VWAP</th>
                                     <th>1m Volume</th>
+                                    <th>Order Flow</th>
                                     <th>24h Trend</th>
                                     <th>Action</th>
                                 </tr>

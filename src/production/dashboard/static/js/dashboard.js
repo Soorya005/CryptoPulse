@@ -14,6 +14,7 @@ let chartInstance = null;
 let isDarkMode = false;
 let showEma9 = false;
 let showBollinger = false;
+let cachedOrderFlow = {};
 
 // Live Market Cache
 let liveMarket = {
@@ -429,6 +430,59 @@ function updateOneMinuteAnalytics() {
     document.getElementById('valVwap').textContent = isINR ? formatInrPrice(vwap) : formatRawPrice(vwap);
     document.getElementById('valTotalVolume').textContent = volume.toFixed(4);
     document.getElementById('valTickCount').textContent = tickCount.toLocaleString('en-US');
+
+    updateOrderFlowWidget();
+}
+
+function updateOrderFlowWidget() {
+    const sym = selectedSymbol;
+    let flow = cachedOrderFlow[sym];
+    if (!flow) {
+        // Fallback default before first fetch
+        flow = {
+            symbol: sym,
+            buy_volume: sym === 'BTC' ? 14.23 : (sym === 'ETH' ? 15.52 : 710.14),
+            sell_volume: sym === 'BTC' ? 10.77 : (sym === 'ETH' ? 9.48 : 489.86),
+            total_volume: sym === 'BTC' ? 25.0 : (sym === 'ETH' ? 25.0 : 1200.0),
+            imbalance_pct: 13.8,
+            sentiment: 'Bullish'
+        };
+    }
+
+    const buyVol = Number(flow.buy_volume || 0);
+    const sellVol = Number(flow.sell_volume || 0);
+    const totVol = Number(flow.total_volume || (buyVol + sellVol) || 1);
+    const buyPct = Math.min(100, Math.max(0, Math.round((buyVol / totVol) * 100)));
+    const sellPct = 100 - buyPct;
+
+    const imb = Number(flow.imbalance_pct || 0);
+    const sentiment = flow.sentiment || (imb > 10 ? 'Bullish' : (imb < -10 ? 'Bearish' : 'Neutral'));
+
+    const badge = document.getElementById('orderFlowSentimentBadge');
+    const buyBar = document.getElementById('flowProgressBuy');
+    const sellBar = document.getElementById('flowProgressSell');
+    const buyPctEl = document.getElementById('flowBuyPct');
+    const sellPctEl = document.getElementById('flowSellPct');
+    const buyQtyEl = document.getElementById('flowBuyQty');
+    const sellQtyEl = document.getElementById('flowSellQty');
+
+    if (badge) {
+        const sevClass = sentiment.toLowerCase();
+        badge.className = `sentiment-badge ${sevClass}`;
+        const sign = imb > 0 ? '+' : '';
+        const arrow = imb > 0 ? '▲' : (imb < 0 ? '▼' : '●');
+        badge.innerHTML = `<span class="sentiment-icon">${arrow}</span> <span>${sentiment} ${sign}${imb.toFixed(1)}%</span>`;
+    }
+
+    if (buyBar && sellBar) {
+        buyBar.style.width = `${buyPct}%`;
+        sellBar.style.width = `${sellPct}%`;
+    }
+
+    if (buyPctEl) buyPctEl.textContent = `${buyPct}%`;
+    if (sellPctEl) sellPctEl.textContent = `${sellPct}%`;
+    if (buyQtyEl) buyQtyEl.textContent = `(${buyVol.toFixed(2)} ${sym})`;
+    if (sellQtyEl) sellQtyEl.textContent = `(${sellVol.toFixed(2)} ${sym})`;
 }
 
 function updateRecentTradesTable(trades) {
@@ -664,6 +718,10 @@ function updateAnalyticsMatrixTable() {
         const ret = item.change || 0.8;
         const isPos = ret >= 0;
 
+        const flow = cachedOrderFlow[sym] || { sentiment: 'Neutral', imbalance_pct: 0.0 };
+        const flowSign = flow.imbalance_pct > 0 ? '+' : '';
+        const flowClass = (flow.sentiment || 'Neutral').toLowerCase();
+
         return `
             <tr>
                 <td><span class="sym-badge">${sym}-USD</span></td>
@@ -674,6 +732,11 @@ function updateAnalyticsMatrixTable() {
                 <td>${formatPrice(maxPrice, currencyMode)}</td>
                 <td><span style="font-weight:600; color:var(--color-blue);">${formatPrice(vwap, currencyMode)}</span></td>
                 <td>${vol.toFixed(2)}</td>
+                <td>
+                    <span class="sentiment-badge ${flowClass}" style="font-size:0.68rem; padding: 2px 7px;">
+                        ${flow.sentiment} (${flowSign}${flow.imbalance_pct.toFixed(1)}%)
+                    </span>
+                </td>
                 <td>
                     <span class="trend-badge ${isPos ? 'positive' : 'negative'}">
                         ${isPos ? '+' : ''}${ret.toFixed(2)}%
@@ -700,11 +763,12 @@ function updateAnalyticsMatrixTable() {
 
 async function fetchLivePipelineData() {
     try {
-        const [resLatest, resRecent, resAlerts, resTelemetry] = await Promise.allSettled([
+        const [resLatest, resRecent, resAlerts, resTelemetry, resOrderFlow] = await Promise.allSettled([
             fetch(`/api/latest?symbols=${SYMBOLS_PARAM}`),
             fetch(`/api/recent?symbols=${SYMBOLS_PARAM}&limit=8`),
             fetch(`/api/alerts?limit=5`),
-            fetch(`/api/telemetry`)
+            fetch(`/api/telemetry`),
+            fetch(`/api/order-flow`)
         ]);
 
         let hasLiveBackend = false;
@@ -747,6 +811,16 @@ async function fetchLivePipelineData() {
             const data = await resTelemetry.value.json();
             if (data && typeof data === 'object') {
                 updatePipelineHealth(data);
+            }
+        }
+
+        // Process Order Flow Imbalance
+        if (resOrderFlow.status === 'fulfilled' && resOrderFlow.value.ok) {
+            const data = await resOrderFlow.value.json();
+            if (data && typeof data === 'object') {
+                cachedOrderFlow = data;
+                updateOrderFlowWidget();
+                updateAnalyticsMatrixTable();
             }
         }
 
@@ -1313,4 +1387,5 @@ window.filterDedicatedAlerts = filterDedicatedAlerts;
 window.fetchLivePipelineData = fetchLivePipelineData;
 window.toggleEma9 = toggleEma9;
 window.toggleBollingerBands = toggleBollingerBands;
+window.updateOrderFlowWidget = updateOrderFlowWidget;
 
