@@ -1901,29 +1901,38 @@ body.dark-theme .btn-action-primary:hover {
 }
 
 .sm-val.net.positive {
-    color: #10B981;
+    color: var(--color-green);
 }
 
 .sm-val.premium {
     color: #D97706;
 }
 
+body.dark-theme .sm-val.premium {
+    color: #FBBF24;
+}
+
 .jump-spread-btn {
     border: none;
-    background: #3B82F6;
+    background: var(--brand-primary);
     color: #FFFFFF;
     font-size: 0.74rem;
     font-weight: 600;
-    padding: 6px 12px;
+    padding: 7px 14px;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .jump-spread-btn:hover {
-    background: #2563EB;
+    background: var(--brand-primary-hover);
     transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .jump-spread-btn.india {
@@ -1934,50 +1943,128 @@ body.dark-theme .btn-action-primary:hover {
     background: #B45309;
 }
 
-.regime-badge {
+/* =============================================================================
+   ARBITRAGE & INDIA PREMIUM MATRIX TERMINAL ENHANCEMENTS
+   ============================================================================= */
+
+.route-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
-}
-
-.regime-badge.red {
-    background: rgba(239, 68, 68, 0.12);
-    color: #EF4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.regime-badge.amber {
-    background: rgba(245, 158, 11, 0.12);
-    color: #D97706;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.regime-badge.green {
-    background: rgba(16, 185, 129, 0.12);
-    color: #10B981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.regime-badge.blue {
-    background: rgba(59, 130, 246, 0.12);
-    color: #3B82F6;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.direction-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+    gap: 5px;
     padding: 3px 8px;
     border-radius: 6px;
-    font-size: 0.72rem;
+    font-size: 0.73rem;
     font-weight: 600;
+    font-family: var(--font-mono);
     background: var(--bg-card-subtle);
     border: 1px solid var(--border-card);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.badge-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: var(--font-sans);
+    white-space: nowrap;
+}
+
+.badge-status-pill.efficient {
+    background: var(--color-green-bg);
+    color: var(--color-green);
+    border: 1px solid var(--color-green-border);
+}
+
+.badge-status-pill.opportunity {
+    background: var(--color-red-bg);
+    color: var(--color-red);
+    border: 1px solid var(--color-red-border);
+}
+
+.badge-status-pill.amber {
+    background: var(--color-amber-bg);
+    color: var(--color-amber);
+    border: 1px solid var(--color-amber-border);
+}
+
+.capital-locked-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.71rem;
+    font-weight: 600;
+    color: var(--color-red);
+    background: var(--color-red-bg);
+    border: 1px solid var(--color-red-border);
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+/* Quantitative Findings & Methodology Cards */
+.methodology-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.methodology-card {
+    background: var(--bg-card-subtle);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.methodology-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2px;
+}
+
+.methodology-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.methodology-card h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.methodology-card p {
+    font-size: 0.83rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.methodology-card ul {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.methodology-card li {
+    font-size: 0.81rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+}
+
+.methodology-card li strong {
     color: var(--text-primary);
 }
 
@@ -1987,6 +2074,9 @@ body.dark-theme .btn-action-primary:hover {
     }
     .spread-metrics-row {
         grid-template-columns: 1fr 1fr;
+    }
+    .methodology-grid {
+        grid-template-columns: 1fr;
     }
 }
 

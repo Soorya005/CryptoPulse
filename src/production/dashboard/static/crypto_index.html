@@ -14,9 +14,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <!-- CryptoPulse Stylesheet -->
-    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css?v=2.2">
     <!-- Main Logic Script -->
-    <script src="/static/js/dashboard.js" defer></script>
+    <script src="/static/js/dashboard.js?v=2.2" defer></script>
 </head>
 
 <body class="light-theme">
@@ -1343,51 +1343,40 @@
             <!-- VIEW: MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM TERMINAL           -->
             <!-- ================================================================= -->
             <div class="dashboard-view" id="view-arbitrage-spreads">
-                <!-- View Header Toolbar -->
-                <div class="view-header-strip" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-                    <div>
-                        <h2 style="font-size: 1.35rem; font-weight: 700; color: #FFFFFF; margin: 0; display: flex; align-items: center; gap: 10px;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="2" y1="12" x2="22" y2="12"></line>
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                            </svg>
-                            Multi-Exchange Arbitrage &amp; India Premium Terminal
-                        </h2>
-                        <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">
-                            Event-time stream joins across independent exchange clocks (Coinbase &bull; Kraken &bull; CoinDCX)
-                        </div>
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Multi-Venue Stream Join Engine: Coinbase &bull; Kraken &bull; CoinDCX
+                        </span>
+                        <span class="badge-pill-status" style="font-family: var(--font-mono); font-size: 0.78rem;">
+                            ECB Reference FX: 1 USD = ₹<span id="termFxRate">88.19</span>
+                        </span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <span class="service-badge" style="background: rgba(99, 102, 241, 0.12); color: #818CF8; border: 1px solid rgba(99, 102, 241, 0.3);">
-                            <span class="pulse-dot" style="width:6px;height:6px;background:#6366F1;border-radius:50%;display:inline-block;"></span>
-                            Kraken WS v2 Live
-                        </span>
-                        <span class="service-badge" style="background: rgba(245, 158, 11, 0.12); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3);">
-                            <span class="pulse-dot" style="width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;"></span>
-                            CoinDCX INR Feed
-                        </span>
-                        <span class="service-badge" style="background: rgba(16, 185, 129, 0.12); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3);" id="termFxBadge">
-                            ECB FX: 1 USD = ₹<span id="termFxRate">86.85</span>
-                        </span>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="fetchLivePipelineData(); showToast('Arbitrage & Spread feeds refreshed');">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span>Refresh Feeds</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- KPI Cards Row -->
-                <div class="kpi-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+                <!-- 4 Major KPI Cards -->
+                <div class="kpi-summary-grid" style="margin-bottom: 24px;">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Market Efficiency Score</span>
-                        <span class="kpi-card-value text-green" id="kpiEfficiency">99.1%</span>
-                        <span class="kpi-card-sub">Spreads trade inside fee hurdle</span>
+                        <span class="kpi-card-value text-green" id="kpiEfficiency">99.48%</span>
+                        <span class="kpi-card-sub">Spreads trade inside 0.35% fee hurdle</span>
                     </div>
                     <div class="kpi-card">
-                        <span class="kpi-card-label">Avg Arb Window Persistence</span>
-                        <span class="kpi-card-value" style="color: #60A5FA;" id="kpiDuration">1.42s</span>
+                        <span class="kpi-card-label">Avg Window Persistence</span>
+                        <span class="kpi-card-value" style="color: var(--brand-accent);" id="kpiDuration">1.4s</span>
                         <span class="kpi-card-sub">Empirical HFT mean reversion</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Round-Trip Fee Hurdle</span>
-                        <span class="kpi-card-value" style="color: #F59E0B;">0.35%</span>
+                        <span class="kpi-card-value" style="color: var(--color-amber);">0.35%</span>
                         <span class="kpi-card-sub">0.15% Maker + 0.20% Taker friction</span>
                     </div>
                     <div class="kpi-card">
@@ -1398,8 +1387,8 @@
                 </div>
 
                 <!-- Section 1: Cross-Exchange Arbitrage (Coinbase vs Kraken) -->
-                <div class="panel-card" style="padding: 22px; margin-bottom: 24px;">
-                    <div class="card-top-controls" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <div class="panel-card" style="padding: 24px; margin-bottom: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
                         <div class="card-heading">
                             <div class="heading-icon">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1407,20 +1396,13 @@
                                     <polyline points="17 6 23 6 23 12"></polyline>
                                 </svg>
                             </div>
-                            <div>
-                                <span class="heading-title" style="font-size: 1rem;">Cross-Exchange Arbitrage &amp; Spread Matrix (Coinbase vs. Kraken)</span>
-                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">
-                                    Event-time join across independent exchange clocks &bull; Hurdle: 0.35% round-trip friction
-                                </div>
-                            </div>
+                            <span class="heading-title">Cross-Exchange Arbitrage &amp; Spread Matrix (Coinbase vs. Kraken)</span>
                         </div>
-                        <span class="status-indicator live" style="font-size: 0.75rem;">
-                            <span class="pulse-dot"></span> Streaming Real-Time
-                        </span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Event-time join across independent exchange clocks &bull; Hurdle: 0.35% round-trip</span>
                     </div>
 
-                    <div style="overflow-x: auto;">
-                        <table class="spread-matrix-table" id="arbitrageMatrixTable">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="arbitrageMatrixTable">
                             <thead>
                                 <tr>
                                     <th>Asset Pair</th>
@@ -1430,7 +1412,7 @@
                                     <th>Spread %</th>
                                     <th>Clock Skew (&Delta;t)</th>
                                     <th>Fee Hurdle</th>
-                                    <th>Net Arb Return</th>
+                                    <th>Net Return</th>
                                     <th>Optimal Route</th>
                                     <th>Status</th>
                                 </tr>
@@ -1443,36 +1425,31 @@
                 </div>
 
                 <!-- Section 2: India Regulatory & Liquidity Premium (CoinDCX vs Global Benchmark) -->
-                <div class="panel-card" style="padding: 22px; margin-bottom: 24px;">
-                    <div class="card-top-controls" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <div class="panel-card" style="padding: 24px; margin-bottom: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
                         <div class="card-heading">
                             <div class="heading-icon">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                                 </svg>
                             </div>
-                            <div>
-                                <span class="heading-title" style="font-size: 1rem;">India Regulatory &amp; Liquidity Premium Tracker (CoinDCX INR vs. ECB Implied Benchmark)</span>
-                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">
-                                    Captures structural domestic spread driven by Section 194S (1% TDS), RBI LRS limits ($250k ceiling) &amp; domestic fiat friction
-                                </div>
-                            </div>
+                            <span class="heading-title">India Regulatory &amp; Liquidity Premium Tracker (CoinDCX INR vs. ECB Fair Value)</span>
                         </div>
-                        <span class="status-indicator live" style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.15); color: #F59E0B;">
-                            <span class="pulse-dot" style="background: #F59E0B;"></span> Synced with CoinDCX
-                        </span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">CoinDCX live book vs. ECB conversion &bull; Statutory 1% TDS &amp; LRS limits</span>
                     </div>
 
-                    <div style="overflow-x: auto;">
-                        <table class="spread-matrix-table" id="indiaPremiumMatrixTable">
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="indiaPremiumMatrixTable">
                             <thead>
                                 <tr>
                                     <th>Asset Pair</th>
                                     <th>CoinDCX Price (INR)</th>
                                     <th>Global Benchmark (USD)</th>
-                                    <th>ECB Implied Fair Value (INR)</th>
+                                    <th>ECB Fair Value (INR)</th>
                                     <th>Gross Spread (INR)</th>
-                                    <th>Premium / Discount %</th>
+                                    <th>Premium %</th>
                                     <th>Regulatory Regime</th>
                                     <th>Arbitrage Feasibility</th>
                                 </tr>
@@ -1486,40 +1463,43 @@
 
                 <!-- Section 3: Quantitative Findings & Microstructure Deep-Dive -->
                 <div class="panel-card" style="padding: 24px;">
-                    <div class="card-heading" style="margin-bottom: 16px;">
-                        <div class="heading-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="12" y1="16" x2="12" y2="12"></line>
-                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                            </svg>
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Quantitative Methodology &amp; Microstructure Findings</span>
                         </div>
-                        <span class="heading-title" style="font-size: 1rem;">Quantitative Methodology &amp; Microstructure Findings</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Empirical research &amp; statutory capital control mechanics</span>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 18px;">
-                            <h4 style="margin: 0 0 10px 0; color: #60A5FA; font-size: 0.92rem; display: flex; align-items: center; gap: 8px;">
-                                <span>&#9889;</span> Cross-Exchange Arbitrage: Why Opportunities are "Rare and Brief"
-                            </h4>
-                            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 10px 0;">
-                                Cross-exchange gross spreads between tier-1 global venues like Coinbase and Kraken typically oscillate between <strong>0.005% and 0.05%</strong> in calm liquidity regimes. 
-                                After accounting for our realistic round-trip fee hurdle of <strong>0.35%</strong> (0.15% maker + 0.20% taker), the <em>net arbitrage profit</em> remains consistently negative.
+                    <div class="methodology-grid">
+                        <div class="methodology-card">
+                            <div class="methodology-card-header">
+                                <span class="methodology-icon">⚡</span>
+                                <h4>Cross-Exchange Arbitrage: Why Opportunities are "Rare and Brief"</h4>
+                            </div>
+                            <p>
+                                Cross-exchange gross spreads between tier-1 venues like Coinbase and Kraken typically oscillate between <strong>0.005% and 0.05%</strong> in calm liquidity regimes. After accounting for our realistic round-trip fee hurdle of <strong>0.35%</strong> (0.15% maker + 0.20% taker), the <em>net arbitrage profit</em> remains consistently negative.
                             </p>
-                            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0;">
+                            <p>
                                 Genuine net-profitable arbitrage windows only emerge during abrupt directional volatility bursts or localized order book imbalances. In our streaming pipeline, these windows persist for an average duration of <strong>~1.4 seconds</strong> before latency-arbitrage algorithmic market makers absorb the disparity.
                             </p>
                         </div>
 
-                        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 18px;">
-                            <h4 style="margin: 0 0 10px 0; color: #F59E0B; font-size: 0.92rem; display: flex; align-items: center; gap: 8px;">
-                                <span>&#127470;&#127475;</span> India Premium: Structural Regulatory Capital Controls
-                            </h4>
-                            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 10px 0;">
-                                Unlike the US/EU crypto corridor, India's crypto markets exhibit a <strong>structural positive premium (+5% to +15%)</strong> against the ECB implied fair value. 
-                                This spread is not an executable riskless arbitrage due to statutory capital barriers:
+                        <div class="methodology-card">
+                            <div class="methodology-card-header">
+                                <span class="methodology-icon">🇮🇳</span>
+                                <h4>India Premium: Structural Regulatory Capital Controls</h4>
+                            </div>
+                            <p>
+                                Unlike the US/EU crypto corridor, India's crypto markets exhibit a <strong>structural positive premium (+5% to +15%)</strong> against the ECB implied fair value. This spread is not an executable riskless arbitrage due to statutory capital barriers:
                             </p>
-                            <ul style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0; padding-left: 18px;">
+                            <ul>
                                 <li><strong>Section 194S 1% TDS:</strong> Deducted at source on all crypto-to-crypto and crypto-to-fiat transactions, draining working capital.</li>
                                 <li><strong>RBI LRS (Liberalised Remittance Scheme):</strong> Enforces a strict $250,000 annual outbound ceiling with bank oversight.</li>
                                 <li><strong>Domestic Banking Disconnect:</strong> Inability to seamlessly repatriate USD offshore creates a segmented, captive domestic liquidity pool.</li>

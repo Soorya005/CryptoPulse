@@ -1483,8 +1483,8 @@ function renderArbitrageMatrix() {
     const oppsEl = document.getElementById('kpiActiveOpps');
 
     const metrics = cachedArbitrage.metrics || {};
-    if (effEl) effEl.textContent = `${metrics.efficiency_pct || 99.1}%`;
-    if (durEl) durEl.textContent = `${metrics.avg_duration_sec || 1.42}s`;
+    if (effEl) effEl.textContent = `${metrics.efficiency_pct || 99.48}%`;
+    if (durEl) durEl.textContent = `${metrics.avg_duration_sec || 1.4}s`;
 
     let activeCount = 0;
     const trackedSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LTC'];
@@ -1497,7 +1497,6 @@ function renderArbitrageMatrix() {
 
         const isAct = item.is_arbitrage_active;
         const netSign = item.net_profit_pct > 0 ? '+' : '';
-        const netClass = isAct ? 'positive' : 'negative';
 
         return `
             <tr>
@@ -1506,20 +1505,20 @@ function renderArbitrageMatrix() {
                 <td><strong style="color:var(--text-primary);">$${item.kraken_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
                 <td>$${item.absolute_spread.toFixed(2)}</td>
                 <td>${item.gross_spread_pct.toFixed(3)}%</td>
-                <td><span style="font-family: monospace; color: var(--text-secondary);">~118 ms</span></td>
-                <td><span style="color: #F59E0B;">0.35%</span></td>
+                <td><span style="color: var(--text-secondary);">${item.clock_skew_ms || 84} ms</span></td>
+                <td><span style="color: var(--color-amber); font-weight: 600;">0.35%</span></td>
                 <td>
-                    <span class="trend-badge ${netClass}" style="font-weight: 700;">
+                    <span class="trend-badge ${isAct ? 'positive' : 'negative'}">
                         ${netSign}${item.net_profit_pct.toFixed(3)}%
                     </span>
                 </td>
                 <td>
-                    <span class="direction-badge" style="background: rgba(99, 102, 241, 0.1); color: #818CF8; border: 1px solid rgba(99, 102, 241, 0.2); padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; white-space: nowrap;">
+                    <span class="route-badge">
                         ${item.direction}
                     </span>
                 </td>
                 <td>
-                    <span class="spread-status-tag ${isAct ? 'active-opp' : 'inside-hurdle'}" style="font-size: 0.72rem; padding: 3px 8px;">
+                    <span class="badge-status-pill ${isAct ? 'opportunity' : 'efficient'}">
                         ${isAct ? 'Active Opportunity' : 'Inside Hurdle'}
                     </span>
                 </td>
@@ -1537,7 +1536,7 @@ function renderIndiaPremiumMatrix() {
     const pairs = cachedIndiaPremium.pairs;
     if (!pairs || Object.keys(pairs).length === 0) return;
 
-    const fxRate = cachedIndiaPremium.fx_rate || 86.85;
+    const fxRate = cachedIndiaPremium.fx_rate || 88.19;
     const termFxEl = document.getElementById('termFxRate');
     if (termFxEl) termFxEl.textContent = fxRate.toFixed(2);
 
@@ -1553,26 +1552,26 @@ function renderIndiaPremiumMatrix() {
 
         return `
             <tr>
-                <td><span class="sym-badge" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.3);">${sym}-INR</span></td>
+                <td><span class="sym-badge" style="background: var(--color-amber-bg); color: var(--color-amber); border-color: var(--color-amber-border);">${sym}-INR</span></td>
                 <td><strong style="color:var(--text-primary);">₹${Math.round(item.coindcx_price_inr).toLocaleString('en-IN')}</strong></td>
                 <td>$${item.global_price_usd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
                 <td>₹${Math.round(item.global_implied_inr).toLocaleString('en-IN')}</td>
-                <td style="color: ${isPos ? '#10B981' : '#EF4444'}; font-weight: 600;">
+                <td style="color: ${isPos ? 'var(--color-green)' : 'var(--color-red)'}; font-weight: 600;">
                     ${diffSign}₹${Math.round(item.premium_inr).toLocaleString('en-IN')}
                 </td>
                 <td>
-                    <span class="trend-badge ${isPos ? 'positive' : 'negative'}" style="font-weight: 700;">
+                    <span class="trend-badge ${isPos ? 'positive' : 'negative'}">
                         ${sign}${item.premium_pct.toFixed(2)}%
                     </span>
                 </td>
                 <td>
-                    <span class="regime-badge ${item.regime_color || 'amber'}" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 4px;">
+                    <span class="badge-status-pill ${item.premium_pct > 8 ? 'opportunity' : 'amber'}">
                         ${item.regime}
                     </span>
                 </td>
                 <td>
-                    <span style="font-size: 0.7rem; color: #EF4444; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span class="capital-locked-badge">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                         Capital Control Locked (1% TDS + LRS)
                     </span>
                 </td>
