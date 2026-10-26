@@ -475,6 +475,14 @@
                         </div>
 
                         <div class="chart-filter-controls">
+                            <!-- Indicator Overlays -->
+                            <button type="button" class="indicator-pill" id="btnToggleEma9" onclick="toggleEma9()" title="Toggle Exponential Moving Average (9-period overlay)">
+                                <span class="indicator-dot amber"></span>EMA (9)
+                            </button>
+                            <button type="button" class="indicator-pill bollinger" id="btnToggleBollinger" onclick="toggleBollingerBands()" title="Toggle Bollinger Bands (20 periods, 2 standard deviations)">
+                                <span class="indicator-dot purple"></span>Bollinger (20, 2σ)
+                            </button>
+
                             <!-- Pair Dropdown -->
                             <div class="custom-select-box">
                                 <select id="pairSelectDropdown" onchange="onPairDropdownChange(this.value)">

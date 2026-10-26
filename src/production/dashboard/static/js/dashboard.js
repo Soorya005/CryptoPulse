@@ -12,6 +12,8 @@ let currentTimeframe = '1H';
 let activeFxRate = 94.96; // Fallback USD/INR conversion rate
 let chartInstance = null;
 let isDarkMode = false;
+let showEma9 = false;
+let showBollinger = false;
 
 // Live Market Cache
 let liveMarket = {
@@ -148,7 +150,46 @@ function generateSparklineSvg(data, isPositive, colorOverride = null) {
 }
 
 // =============================================================================
-// MAIN PRICE HISTORY CHART INITIALIZATION (Area Line Chart)
+// TECHNICAL INDICATOR CALCULATORS (EMA-9 & Bollinger Bands 20, 2σ)
+// =============================================================================
+
+function calculateEMA(prices, period = 9) {
+    if (!prices || prices.length === 0) return [];
+    const k = 2 / (period + 1); // α = 0.20 for period 9
+    const ema = [prices[0]];
+    for (let i = 1; i < prices.length; i++) {
+        const nextVal = (prices[i] * k) + (ema[i - 1] * (1 - k));
+        ema.push(nextVal);
+    }
+    return ema;
+}
+
+function calculateBollingerBands(prices, period = 20, numStdDev = 2) {
+    if (!prices || prices.length === 0) return { sma: [], upper: [], lower: [] };
+    const sma = [];
+    const upper = [];
+    const lower = [];
+
+    for (let i = 0; i < prices.length; i++) {
+        const start = Math.max(0, i - period + 1);
+        const window = prices.slice(start, i + 1);
+        const mean = window.reduce((acc, v) => acc + v, 0) / window.length;
+
+        let variance = 0;
+        for (let j = 0; j < window.length; j++) {
+            variance += Math.pow(window[j] - mean, 2);
+        }
+        const stdDev = Math.sqrt(variance / window.length);
+
+        sma.push(mean);
+        upper.push(mean + numStdDev * stdDev);
+        lower.push(mean - numStdDev * stdDev);
+    }
+    return { sma, upper, lower };
+}
+
+// =============================================================================
+// MAIN PRICE HISTORY CHART INITIALIZATION (Area Line Chart + Indicators)
 // =============================================================================
 
 function initPriceHistoryChart() {
@@ -171,29 +212,74 @@ function initPriceHistoryChart() {
         values.push(basePrice * (1 + noise));
     }
 
-    // Gradient fill
+    // Gradient fill for base price
     const gradient = ctx.createLinearGradient(0, 0, 0, 260);
     gradient.addColorStop(0, 'rgba(37, 99, 235, 0.16)');
     gradient.addColorStop(1, 'rgba(37, 99, 235, 0.00)');
+
+    const emaValues = calculateEMA(values, 9);
+    const bbValues = calculateBollingerBands(values, 20, 2);
 
     chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: `${selectedSymbol} Price`,
-                data: values,
-                borderColor: '#1D4ED8',
-                borderWidth: 2.2,
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.35,
-                pointRadius: 0,
-                pointHoverRadius: 5,
-                pointHoverBackgroundColor: '#1D4ED8',
-                pointHoverBorderColor: '#FFFFFF',
-                pointHoverBorderWidth: 2,
-            }]
+            datasets: [
+                {
+                    label: `${selectedSymbol} Price`,
+                    data: values,
+                    borderColor: '#1D4ED8',
+                    borderWidth: 2.2,
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#1D4ED8',
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointHoverBorderWidth: 2,
+                },
+                {
+                    label: `${selectedSymbol} EMA (9)`,
+                    data: emaValues,
+                    borderColor: '#F59E0B',
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#F59E0B',
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointHoverBorderWidth: 1.5,
+                    fill: false,
+                    tension: 0.35,
+                    hidden: !showEma9
+                },
+                {
+                    label: `${selectedSymbol} BB Upper (20, 2σ)`,
+                    data: bbValues.upper,
+                    borderColor: 'rgba(139, 92, 246, 0.75)',
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                    fill: false,
+                    tension: 0.35,
+                    hidden: !showBollinger
+                },
+                {
+                    label: `${selectedSymbol} BB Lower (20, 2σ)`,
+                    data: bbValues.lower,
+                    borderColor: 'rgba(139, 92, 246, 0.75)',
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                    fill: '-1',
+                    tension: 0.35,
+                    hidden: !showBollinger
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -214,7 +300,8 @@ function initPriceHistoryChart() {
                     displayColors: false,
                     callbacks: {
                         label: function (context) {
-                            return formatPrice(context.parsed.y, currencyMode);
+                            const lbl = context.dataset.label || 'Price';
+                            return `${lbl}: ${formatPrice(context.parsed.y, currencyMode)}`;
                         }
                     }
                 }
@@ -708,6 +795,20 @@ function pushChartPoint() {
         labels.shift();
     }
 
+    // Recalculate indicators dynamically for the current data points
+    const emaVals = calculateEMA(data, 9);
+    const bbVals = calculateBollingerBands(data, 20, 2);
+
+    if (chartInstance.data.datasets[1]) {
+        chartInstance.data.datasets[1].data = emaVals;
+    }
+    if (chartInstance.data.datasets[2]) {
+        chartInstance.data.datasets[2].data = bbVals.upper;
+    }
+    if (chartInstance.data.datasets[3]) {
+        chartInstance.data.datasets[3].data = bbVals.lower;
+    }
+
     chartInstance.update('none');
     updateFloatingTooltipBadge(price, `${timeStr}:${String(now.getSeconds()).padStart(2, '0')}`);
 }
@@ -797,9 +898,29 @@ function resetChartWithNewSymbol(sym) {
         data.push(basePrice * (1 + noise));
     }
 
+    const emaVals = calculateEMA(data, 9);
+    const bbVals = calculateBollingerBands(data, 20, 2);
+
     chartInstance.data.labels = labels;
     chartInstance.data.datasets[0].data = data;
     chartInstance.data.datasets[0].label = `${sym} Price`;
+
+    if (chartInstance.data.datasets[1]) {
+        chartInstance.data.datasets[1].data = emaVals;
+        chartInstance.data.datasets[1].label = `${sym} EMA (9)`;
+        chartInstance.data.datasets[1].hidden = !showEma9;
+    }
+    if (chartInstance.data.datasets[2]) {
+        chartInstance.data.datasets[2].data = bbVals.upper;
+        chartInstance.data.datasets[2].label = `${sym} BB Upper (20, 2σ)`;
+        chartInstance.data.datasets[2].hidden = !showBollinger;
+    }
+    if (chartInstance.data.datasets[3]) {
+        chartInstance.data.datasets[3].data = bbVals.lower;
+        chartInstance.data.datasets[3].label = `${sym} BB Lower (20, 2σ)`;
+        chartInstance.data.datasets[3].hidden = !showBollinger;
+    }
+
     chartInstance.update();
     updateFloatingTooltipBadge(data[data.length - 1], labels[labels.length - 1]);
 }
@@ -1008,6 +1129,31 @@ function toggleChartViewMode() {
     showToast('Grid View toggled: 1-Minute Live Candlesticks');
 }
 
+function toggleEma9() {
+    showEma9 = !showEma9;
+    const btn = document.getElementById('btnToggleEma9');
+    if (btn) btn.classList.toggle('active', showEma9);
+
+    if (chartInstance && chartInstance.data.datasets[1]) {
+        chartInstance.data.datasets[1].hidden = !showEma9;
+        chartInstance.update();
+    }
+    showToast(showEma9 ? 'EMA (9) Overlay Enabled' : 'EMA (9) Overlay Disabled');
+}
+
+function toggleBollingerBands() {
+    showBollinger = !showBollinger;
+    const btn = document.getElementById('btnToggleBollinger');
+    if (btn) btn.classList.toggle('active', showBollinger);
+
+    if (chartInstance && chartInstance.data.datasets[2] && chartInstance.data.datasets[3]) {
+        chartInstance.data.datasets[2].hidden = !showBollinger;
+        chartInstance.data.datasets[3].hidden = !showBollinger;
+        chartInstance.update();
+    }
+    showToast(showBollinger ? 'Bollinger Bands (20, 2σ) Enabled' : 'Bollinger Bands Disabled');
+}
+
 // =============================================================================
 // MODALS & SPOTLIGHT SEARCH (⌘K)
 // =============================================================================
@@ -1165,4 +1311,6 @@ window.onLiveMarketSelect = onLiveMarketSelect;
 window.filterDedicatedTrades = filterDedicatedTrades;
 window.filterDedicatedAlerts = filterDedicatedAlerts;
 window.fetchLivePipelineData = fetchLivePipelineData;
+window.toggleEma9 = toggleEma9;
+window.toggleBollingerBands = toggleBollingerBands;
 

@@ -838,6 +838,63 @@ body.dark-theme .stat-card.active-asset {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
+}
+
+.indicator-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-secondary);
+    background: var(--bg-card-subtle);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+    white-space: nowrap;
+}
+
+.indicator-pill:hover {
+    color: var(--text-primary);
+    border-color: #94A3B8;
+    background: var(--bg-card);
+    transform: translateY(-1px);
+}
+
+.indicator-pill.active {
+    color: #D97706;
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.45);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.18);
+}
+
+.indicator-pill.bollinger.active {
+    color: #8B5CF6;
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.45);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.18);
+}
+
+.indicator-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.indicator-dot.amber {
+    background: #F59E0B;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+}
+
+.indicator-dot.purple {
+    background: #8B5CF6;
+    box-shadow: 0 0 6px rgba(139, 92, 246, 0.7);
 }
 
 .timeframe-group {
