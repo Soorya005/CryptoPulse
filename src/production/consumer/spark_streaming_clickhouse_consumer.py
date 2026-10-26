@@ -25,9 +25,11 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     from_json, col, to_timestamp, window, avg, min as spark_min,
-    max as spark_max, sum as spark_sum, count as spark_count,
+    max as spark_max, sum as spark_sum, count as spark_count, when, lit, coalesce,
 )
-from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType
+from pyspark.sql.types import (
+    StructType, StructField, StringType, DoubleType, LongType, IntegerType, TimestampType,
+)
 
 # =============================================================================
 # CONFIGURATION
@@ -87,10 +89,25 @@ print("=" * 60)
 # DEFINE SCHEMA FOR JSON MESSAGES
 # =============================================================================
 
-# Producer sends: {"symbol": "AAPL", "price": 150.25, "volume": 1000, "timestamp": "2026-01-30T10:30:00.123456"}
+# Producer sends:
+# {
+#   "symbol": "BTC",
+#   "price": 81611.2,
+#   "price_usd": 81611.2,
+#   "price_inr": 7749799.55,
+#   "exchange_rate": 94.96,
+#   "rate_timestamp": "2026-10-16 00:00:00",
+#   "volume": 1,
+#   "timestamp": "2026-10-17T08:29:15.445677+00:00"
+# }
 stock_schema = StructType([
+    StructField("event_id", StringType(), True),
     StructField("symbol", StringType(), True),
     StructField("price", DoubleType(), True),
+    StructField("price_usd", DoubleType(), True),
+    StructField("price_inr", DoubleType(), True),
+    StructField("exchange_rate", DoubleType(), True),
+    StructField("rate_timestamp", StringType(), True),
     StructField("volume", LongType(), True),
     StructField("timestamp", StringType(), True),
 ])
@@ -104,6 +121,7 @@ df_raw = (
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
     .option("subscribe", KAFKA_TOPIC)
     .option("startingOffsets", "latest")
+    .option("failOnDataLoss", "false")
     .load()
 )
 
@@ -116,8 +134,13 @@ df_parsed = (
     .selectExpr("CAST(value AS STRING) as json_str")
     .select(from_json(col("json_str"), stock_schema).alias("data"))
     .select(
+        coalesce(col("data.event_id"), lit("")).alias("event_id"),
         col("data.symbol").alias("symbol"),
         col("data.price").alias("price"),
+        col("data.price_usd").alias("price_usd"),
+        col("data.price_inr").alias("price_inr"),
+        col("data.exchange_rate").alias("exchange_rate"),
+        to_timestamp(col("data.rate_timestamp"), "yyyy-MM-dd HH:mm:ss").alias("rate_timestamp"),
         col("data.volume").alias("volume"),
         to_timestamp(col("data.timestamp")).alias("timestamp"),
     )
@@ -127,17 +150,6 @@ df_parsed = (
 # =============================================================================
 # EVENT-TIME PROCESSING: WATERMARK
 # =============================================================================
-#
-# Watermarks tell Spark how long to wait for late-arriving data.
-#
-# Without a watermark, Spark would have to track ALL past windows forever
-# (unbounded state). The watermark lets Spark drop state for windows that
-# are older than (max event time seen - watermark delay).
-#
-# Example with WATERMARK_DELAY = "30 seconds":
-#   - Spark sees event at 10:05:00 -> watermark = 10:04:30
-#   - Any event with timestamp < 10:04:30 is considered "too late" and dropped
-#   - Windows ending before 10:04:30 are finalized and their state is cleaned up
 
 df_with_watermark = df_parsed.withWatermark("timestamp", WATERMARK_DELAY)
 
@@ -152,6 +164,15 @@ CLICKHOUSE_PROPERTIES = {
     "user": "default",
     "password": "",
     "isolationLevel": "NONE",
+    "createTableOptions": "ENGINE = MergeTree() ORDER BY (symbol, timestamp)",
+}
+
+AGG_PROPERTIES = {
+    "driver": "com.clickhouse.jdbc.ClickHouseDriver",
+    "user": "default",
+    "password": "",
+    "isolationLevel": "NONE",
+    "createTableOptions": "ENGINE = ReplacingMergeTree() ORDER BY (symbol, window_start)",
 }
 
 # =============================================================================
@@ -159,23 +180,37 @@ CLICKHOUSE_PROPERTIES = {
 # =============================================================================
 
 def write_raw_to_clickhouse(batch_df, batch_id):
-    """Write raw tick data to ClickHouse (same as micro-batch consumer)."""
-    row_count = batch_df.count()
+    """Write raw tick data to ClickHouse with explicit column ordering."""
+    try:
+        row_count = batch_df.count()
 
-    if row_count > 0:
-        print(f"\n[Raw Batch {batch_id}] Writing {row_count} ticks to {CLICKHOUSE_RAW_TABLE}...")
-        (
-            batch_df.write
-            .jdbc(
-                url=CLICKHOUSE_JDBC_URL,
-                table=CLICKHOUSE_RAW_TABLE,
-                mode="append",
-                properties=CLICKHOUSE_PROPERTIES,
+        if row_count > 0:
+            print(f"\n[Raw Batch {batch_id}] Writing {row_count} ticks to {CLICKHOUSE_RAW_TABLE}...")
+            (
+                batch_df.select(
+                    col("symbol").cast(StringType()),
+                    col("price").cast(DoubleType()),
+                    col("volume").cast(DoubleType()),
+                    col("timestamp").cast(TimestampType()),
+                    col("price_usd").cast(DoubleType()),
+                    col("price_inr").cast(DoubleType()),
+                    col("exchange_rate").cast(DoubleType()),
+                    col("rate_timestamp").cast(TimestampType()),
+                    col("event_id").cast(StringType()),
+                )
+                .write
+                .jdbc(
+                    url=CLICKHOUSE_JDBC_URL,
+                    table=CLICKHOUSE_RAW_TABLE,
+                    mode="append",
+                    properties=CLICKHOUSE_PROPERTIES,
+                )
             )
-        )
-        print(f"[Raw Batch {batch_id}] Done!")
-    else:
-        print(f"\n[Raw Batch {batch_id}] No new data")
+            print(f"[Raw Batch {batch_id}] Done!")
+        else:
+            print(f"\n[Raw Batch {batch_id}] No new data")
+    except Exception as e:
+        print(f"\n[Raw Batch {batch_id}] Warning/Error writing to ClickHouse: {e}")
 
 
 raw_query = (
@@ -191,19 +226,10 @@ raw_query = (
 # =============================================================================
 # STREAM 2: WINDOWED AGGREGATIONS -> stocks.ticks_1m_agg
 # =============================================================================
-#
-# Tumbling window: non-overlapping, fixed-size time intervals.
-# Each event belongs to exactly one window.
-#
-#   |----window 1----|----window 2----|----window 3----|
-#   10:00           10:01           10:02           10:03
-#
-# To use SLIDING windows instead (overlapping), replace:
-#   window(col("timestamp"), WINDOW_DURATION)
-# with:
-#   window(col("timestamp"), "1 minute", "30 seconds")
-#   This creates 1-minute windows that slide every 30 seconds,
-#   so each event belongs to TWO windows.
+
+# Safe INR aggregation helpers
+inr_vol_sum = spark_sum(when(col("price_inr").isNotNull(), col("volume")))
+inr_weighted_sum = spark_sum(when(col("price_inr").isNotNull(), col("price_inr") * col("volume")))
 
 df_windowed = (
     df_with_watermark
@@ -212,56 +238,85 @@ df_windowed = (
         window(col("timestamp"), WINDOW_DURATION),
     )
     .agg(
-        # VWAP = Volume-Weighted Average Price = sum(price * volume) / sum(volume)
-        # This gives more weight to prices where more shares traded.
+        # USD VWAP & standard metrics (canonical, backwards compatible)
         (spark_sum(col("price") * col("volume")) / spark_sum(col("volume"))).alias("vwap"),
         avg(col("price")).alias("avg_price"),
         spark_min(col("price")).alias("min_price"),
         spark_max(col("price")).alias("max_price"),
         spark_sum(col("volume")).alias("total_volume"),
         spark_count("*").alias("tick_count"),
+        # Safe INR VWAP: Exclude null price_inr from numerator and denominator.
+        # Returns explicit NULL if valid INR volume sum is 0 or null.
+        (
+            when(
+                inr_vol_sum.isNotNull() & (inr_vol_sum > 0),
+                inr_weighted_sum / inr_vol_sum
+            ).otherwise(lit(None).cast(DoubleType()))
+        ).alias("vwap_inr"),
+        # Standard SQL averages/min/max ignore nulls and return null if all values in window are null
+        avg(col("price_inr")).alias("avg_price_inr"),
+        spark_min(col("price_inr")).alias("min_price_inr"),
+        spark_max(col("price_inr")).alias("max_price_inr"),
     )
     .select(
-        col("symbol"),
-        col("window.start").alias("window_start"),
-        col("window.end").alias("window_end"),
-        col("vwap"),
-        col("avg_price"),
-        col("min_price"),
-        col("max_price"),
-        col("total_volume"),
-        col("tick_count"),
+        col("symbol").cast(StringType()),
+        col("window.start").cast(TimestampType()).alias("window_start"),
+        col("window.end").cast(TimestampType()).alias("window_end"),
+        col("vwap").cast(DoubleType()),
+        col("avg_price").cast(DoubleType()),
+        col("min_price").cast(DoubleType()),
+        col("max_price").cast(DoubleType()),
+        col("total_volume").cast(LongType()),
+        col("tick_count").cast(IntegerType()),
+        col("vwap_inr").cast(DoubleType()),
+        col("avg_price_inr").cast(DoubleType()),
+        col("min_price_inr").cast(DoubleType()),
+        col("max_price_inr").cast(DoubleType()),
     )
 )
 
 
 def write_agg_to_clickhouse(batch_df, batch_id):
     """
-    Write windowed aggregations to ClickHouse.
+    Write windowed aggregations to ClickHouse with explicit 13-column ordering.
 
-    outputMode("update") means Spark sends updated rows for windows that are still open.
-    ClickHouse's ReplacingMergeTree deduplicates on (symbol, window_start) during merges,
-    keeping only the latest version of each row.
-
-    To get deduplicated results immediately, query with FINAL:
-        SELECT * FROM stocks.ticks_1m_agg FINAL ORDER BY window_start DESC
+    ClickHouse ReplacingMergeTree deduplicates on (symbol, window_start).
+    Query with FINAL for instantaneous deduplicated views.
     """
-    row_count = batch_df.count()
+    try:
+        row_count = batch_df.count()
 
-    if row_count > 0:
-        print(f"\n[Agg Batch {batch_id}] Writing {row_count} window aggregations to {CLICKHOUSE_AGG_TABLE}...")
-        (
-            batch_df.write
-            .jdbc(
-                url=CLICKHOUSE_JDBC_URL,
-                table=CLICKHOUSE_AGG_TABLE,
-                mode="append",
-                properties=CLICKHOUSE_PROPERTIES,
+        if row_count > 0:
+            print(f"\n[Agg Batch {batch_id}] Writing {row_count} window aggregations to {CLICKHOUSE_AGG_TABLE}...")
+            (
+                batch_df.select(
+                    col("symbol").cast(StringType()),
+                    col("window_start").cast(TimestampType()),
+                    col("window_end").cast(TimestampType()),
+                    col("vwap").cast(DoubleType()),
+                    col("avg_price").cast(DoubleType()),
+                    col("min_price").cast(DoubleType()),
+                    col("max_price").cast(DoubleType()),
+                    col("total_volume").cast(LongType()),
+                    col("tick_count").cast(IntegerType()),
+                    col("vwap_inr").cast(DoubleType()),
+                    col("avg_price_inr").cast(DoubleType()),
+                    col("min_price_inr").cast(DoubleType()),
+                    col("max_price_inr").cast(DoubleType()),
+                )
+                .write
+                .jdbc(
+                    url=CLICKHOUSE_JDBC_URL,
+                    table=CLICKHOUSE_AGG_TABLE,
+                    mode="append",
+                    properties=AGG_PROPERTIES,
+                )
             )
-        )
-        print(f"[Agg Batch {batch_id}] Done!")
-    else:
-        print(f"\n[Agg Batch {batch_id}] No updated windows")
+            print(f"[Agg Batch {batch_id}] Done!")
+        else:
+            print(f"\n[Agg Batch {batch_id}] No updated windows")
+    except Exception as e:
+        print(f"\n[Agg Batch {batch_id}] Warning/Error writing aggregations: {e}")
 
 
 agg_query = (

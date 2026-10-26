@@ -11,12 +11,19 @@ Usage:
 """
 
 import json
+import math
 import os
 import signal
 import sys
+import time
+import urllib.request
 from datetime import datetime, timezone
+import uuid
 
-from kafka import KafkaProducer
+try:
+    from kafka import KafkaProducer
+except ImportError:
+    KafkaProducer = None
 
 # =============================================================================
 # CONFIGURATION
@@ -40,13 +47,202 @@ SYMBOL_NAMES = {
 }
 
 # =============================================================================
+# EXCHANGE RATE MANAGER (USD -> INR)
+# =============================================================================
+
+class ExchangeRateManager:
+    """
+    Manages USD to INR exchange rate fetching, caching, validation, and failover.
+
+    1. Primary:     Frankfurter API (European Central Bank reference rates)
+    2. Secondary:   Open Exchange Rates open endpoint
+    3. Stale cache: Retains last known valid rate if all upstream calls fail
+    4. Unavailable: If no valid rate exists, returns (None, None).
+       Never publishes fabricated or hardcoded fallback rates.
+
+    Cache TTL vs Provider Freshness:
+    The 10-minute cache TTL (`cache_ttl_seconds`) controls HTTP polling frequency
+    to prevent rate-limiting upstream free APIs. It does NOT represent or alter the
+    provider's published data update schedule (e.g. ECB publishes daily). When a cached
+    rate is reused, `rate_timestamp` reflects the provider's actual update timestamp
+    and is NOT refreshed on cache hits.
+
+    Timezone Semantics:
+    Timestamps represent naive UTC formatted as 'YYYY-MM-DD HH:MM:SS' to match ClickHouse
+    DateTime column requirements. If an upstream provider omits or provides an unparseable
+    publication timestamp, `rate_timestamp` is stored as None (NULL) rather than fabricated.
+    """
+
+    def __init__(self, cache_ttl_seconds: int = 600, time_provider=time.monotonic):
+        self.cache_ttl = cache_ttl_seconds
+        self._time = time_provider
+        self._cached_rate: float | None = None
+        self._rate_timestamp: str | None = None  # Format: 'YYYY-MM-DD HH:MM:SS' or None
+        self._last_fetch_monotonic: float = -float("inf")
+
+    def _validate_rate(self, rate_val) -> float:
+        """Validate that rate is numeric, finite, and strictly greater than zero."""
+        rate = float(rate_val)
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError(f"Invalid exchange rate value: {rate}")
+        return rate
+
+    def _fetch_frankfurter(self) -> tuple[float, str | None]:
+        req = urllib.request.Request(
+            "https://api.frankfurter.app/latest?from=USD&to=INR",
+            headers={"User-Agent": "CryptoProducer/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.getcode() != 200:
+                raise ValueError(f"Frankfurter returned HTTP status {resp.getcode()}")
+            data = json.loads(resp.read().decode("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("Frankfurter response is not a valid JSON object")
+
+            rates = data.get("rates")
+            if not isinstance(rates, dict) or "INR" not in rates:
+                raise ValueError("Missing 'INR' field in Frankfurter rates payload")
+
+            rate = self._validate_rate(rates["INR"])
+
+            # Frankfurter publishes reference date 'YYYY-MM-DD' (ECB daily fix)
+            date_str = data.get("date")
+            ts = None
+            if date_str and isinstance(date_str, str):
+                try:
+                    dt = datetime.strptime(date_str.strip(), "%Y-%m-%d")
+                    ts = dt.strftime("%Y-%m-%d 00:00:00")
+                except ValueError:
+                    ts = None
+
+            return rate, ts
+
+    def _fetch_open_er(self) -> tuple[float, str | None]:
+        req = urllib.request.Request(
+            "https://open.er-api.com/v6/latest/USD",
+            headers={"User-Agent": "CryptoProducer/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.getcode() != 200:
+                raise ValueError(f"Open ER returned HTTP status {resp.getcode()}")
+            data = json.loads(resp.read().decode("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("Open ER response is not a valid JSON object")
+
+            rates = data.get("rates")
+            if not isinstance(rates, dict) or "INR" not in rates:
+                raise ValueError("Missing 'INR' field in Open ER rates payload")
+
+            rate = self._validate_rate(rates["INR"])
+
+            # Open ER publishes 'time_last_update_utc' e.g. 'Sat, 17 Oct 2026 00:02:32 +0000'
+            raw_ts = data.get("time_last_update_utc")
+            ts = None
+            if raw_ts and isinstance(raw_ts, str):
+                try:
+                    dt = datetime.strptime(raw_ts[:25].strip(), "%a, %d %b %Y %H:%M:%S")
+                    ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    ts = None
+
+            return rate, ts
+
+    def get_rate(self) -> tuple[float | None, str | None]:
+        """
+        Returns (rate, rate_timestamp).
+        - Cache hit: Returns cached (rate, rate_timestamp) WITHOUT refreshing the timestamp.
+        - Cache expired: Fetches fresh rate from primary -> secondary with strict validation.
+        - Failover: Retains stale cached rate if all upstream calls fail.
+        - Unavailable: Returns (None, None) if no valid rate has ever been fetched.
+        """
+        now_mono = self._time()
+        if self._cached_rate is not None and (now_mono - self._last_fetch_monotonic) < self.cache_ttl:
+            return self._cached_rate, self._rate_timestamp
+
+        # Try primary API (Frankfurter)
+        try:
+            rate, ts = self._fetch_frankfurter()
+            self._cached_rate = rate
+            self._rate_timestamp = ts
+            self._last_fetch_monotonic = now_mono
+            return self._cached_rate, self._rate_timestamp
+        except Exception as e1:
+            print(f"[exchange-rate] Frankfurter failed: {e1}, trying secondary...", file=sys.stderr)
+
+        # Try secondary API (Open ER)
+        try:
+            rate, ts = self._fetch_open_er()
+            self._cached_rate = rate
+            self._rate_timestamp = ts
+            self._last_fetch_monotonic = now_mono
+            return self._cached_rate, self._rate_timestamp
+        except Exception as e2:
+            print(f"[exchange-rate] Secondary API failed: {e2}", file=sys.stderr)
+
+        # Fallback to stale cached rate if one was ever successfully fetched
+        if self._cached_rate is not None:
+            print(
+                f"[exchange-rate] Retaining stale cached rate {self._cached_rate} from {self._rate_timestamp}",
+                file=sys.stderr,
+            )
+            return self._cached_rate, self._rate_timestamp
+
+        # No valid rate available anywhere
+        print("[exchange-rate] No exchange rate available from any provider. Marking INR unavailable.", file=sys.stderr)
+        return None, None
+
+
+rate_manager = ExchangeRateManager(cache_ttl_seconds=600)
+
+# =============================================================================
 # KAFKA PRODUCER
 # =============================================================================
 
-producer = KafkaProducer(
-    bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-    value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-)
+def process_ticker_message(message: str, rate_mgr: ExchangeRateManager) -> dict | None:
+    """Parse and transform a Coinbase WebSocket ticker message into a dual-currency tick."""
+    try:
+        data = json.loads(message)
+        if data.get("type") != "ticker":
+            return None
+
+        product_id = data.get("product_id", "")
+        symbol = SYMBOL_NAMES.get(product_id, product_id.replace("-USD", ""))
+        price = float(data.get("price", 0))
+        volume = int(float(data.get("last_size", 0)) * 1000)
+
+        if price <= 0:
+            return None
+
+        rate, rate_ts = rate_mgr.get_rate()
+        price_inr = round(price * rate, 2) if rate is not None else None
+
+        return {
+            "event_id": str(uuid.uuid4().hex),
+            "symbol": symbol,
+            "price": price,                       # Preserved for backward compatibility (= price_usd)
+            "price_usd": price,                   # Explicit USD price
+            "price_inr": price_inr,               # Converted INR price (None if unavailable)
+            "exchange_rate": rate,                # USD/INR conversion rate (None if unavailable)
+            "rate_timestamp": rate_ts,            # Provider fetch timestamp formatted for ClickHouse (None if unavail)
+            "volume": max(volume, 1),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        print(f"Error processing message: {e}", file=sys.stderr)
+        return None
+
+
+producer = None
+
+def get_producer():
+    """Lazily initialize KafkaProducer when Kafka is available."""
+    global producer
+    if producer is None and KafkaProducer is not None:
+        producer = KafkaProducer(
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        )
+    return producer
 
 # =============================================================================
 # WEBSOCKET HANDLER
@@ -54,36 +250,12 @@ producer = KafkaProducer(
 
 def on_message(ws, message):
     """Handle incoming WebSocket message."""
-    try:
-        data = json.loads(message)
-
-        # Only process ticker messages
-        if data.get("type") != "ticker":
-            return
-
-        product_id = data.get("product_id", "")
-        symbol = SYMBOL_NAMES.get(product_id, product_id.replace("-USD", ""))
-
-        price = float(data.get("price", 0))
-        volume = int(float(data.get("last_size", 0)) * 1000)  # Scale up for visibility
-
-        if price <= 0:
-            return
-
-        # Create tick message
-        tick = {
-            "symbol": symbol,
-            "price": price,
-            "volume": max(volume, 1),  # Ensure at least 1
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-
-        # Send to Kafka
-        producer.send(KAFKA_TOPIC, tick)
+    tick = process_ticker_message(message, rate_manager)
+    if tick:
+        p = get_producer()
+        if p:
+            p.send(KAFKA_TOPIC, tick)
         print(f"Sent: {tick}")
-
-    except Exception as e:
-        print(f"Error processing message: {e}")
 
 
 def on_error(ws, error):
@@ -142,7 +314,8 @@ def main():
     def signal_handler(sig, frame):
         print("\nShutting down...")
         ws.close()
-        producer.close()
+        if producer:
+            producer.close()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)

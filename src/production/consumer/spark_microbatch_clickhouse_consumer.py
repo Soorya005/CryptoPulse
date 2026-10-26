@@ -72,10 +72,15 @@ print("=" * 60)
 # We need to tell Spark what fields to expect:
 
 stock_schema = StructType([
+    StructField("event_id", StringType(), True),
     StructField("symbol", StringType(), True),
     StructField("price", DoubleType(), True),
+    StructField("price_usd", DoubleType(), True),
+    StructField("price_inr", DoubleType(), True),
+    StructField("exchange_rate", DoubleType(), True),
+    StructField("rate_timestamp", StringType(), True),
     StructField("volume", LongType(), True),
-    StructField("timestamp", StringType(), True),  # ISO format string from producer
+    StructField("timestamp", StringType(), True),
 ])
 
 # =============================================================================
@@ -87,6 +92,7 @@ df_raw = (
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
     .option("subscribe", KAFKA_TOPIC)
     .option("startingOffsets", "latest")
+    .option("failOnDataLoss", "false")
     .load()
 )
 
@@ -107,8 +113,13 @@ df_parsed = (
     .select(from_json(col("json_str"), stock_schema).alias("data"))
     # Flatten: extract fields from the struct
     .select(
+        coalesce(col("data.event_id"), lit("")).alias("event_id"),
         col("data.symbol").alias("symbol"),
         col("data.price").alias("price"),
+        coalesce(col("data.price_usd"), col("data.price")).alias("price_usd"),
+        coalesce(col("data.price_inr"), col("data.price") * lit(94.96)).alias("price_inr"),
+        coalesce(col("data.exchange_rate"), lit(94.96)).alias("exchange_rate"),
+        to_timestamp(col("data.rate_timestamp"), "yyyy-MM-dd HH:mm:ss").alias("rate_timestamp"),
         col("data.volume").alias("volume"),
         # Convert ISO string to timestamp
         to_timestamp(col("data.timestamp")).alias("timestamp"),

@@ -118,10 +118,21 @@ docker exec clickhouse clickhouse-client --query "
     CREATE TABLE IF NOT EXISTS stocks.ticks (
         symbol String,
         price Float64,
-        volume UInt32,
-        timestamp DateTime64(6)
+        volume Float64,
+        timestamp DateTime,
+        price_usd Nullable(Float64) DEFAULT price,
+        price_inr Nullable(Float64) DEFAULT NULL,
+        exchange_rate Nullable(Float64) DEFAULT NULL,
+        rate_timestamp Nullable(DateTime) DEFAULT NULL
     ) ENGINE = MergeTree()
     ORDER BY (symbol, timestamp)
+"
+# Dual-currency columns migration -- non-destructive, safe on existing deployments
+docker exec clickhouse clickhouse-client -n --query "
+    ALTER TABLE stocks.ticks ADD COLUMN IF NOT EXISTS price_usd Nullable(Float64) DEFAULT price;
+    ALTER TABLE stocks.ticks ADD COLUMN IF NOT EXISTS price_inr Nullable(Float64) DEFAULT NULL;
+    ALTER TABLE stocks.ticks ADD COLUMN IF NOT EXISTS exchange_rate Nullable(Float64) DEFAULT NULL;
+    ALTER TABLE stocks.ticks ADD COLUMN IF NOT EXISTS rate_timestamp Nullable(DateTime) DEFAULT NULL;
 "
 docker exec clickhouse clickhouse-client --query "
     CREATE TABLE IF NOT EXISTS stocks.ticks_1m_agg (
@@ -133,9 +144,36 @@ docker exec clickhouse clickhouse-client --query "
         min_price Float64,
         max_price Float64,
         total_volume UInt64,
-        tick_count UInt32
+        tick_count UInt32,
+        vwap_inr Nullable(Float64) DEFAULT NULL,
+        avg_price_inr Nullable(Float64) DEFAULT NULL,
+        min_price_inr Nullable(Float64) DEFAULT NULL,
+        max_price_inr Nullable(Float64) DEFAULT NULL
     ) ENGINE = ReplacingMergeTree()
     ORDER BY (symbol, window_start)
+"
+# 1m aggregate dual-currency migration -- non-destructive, safe on existing deployments
+docker exec clickhouse clickhouse-client -n --query "
+    ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS vwap_inr Nullable(Float64) DEFAULT NULL;
+    ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS avg_price_inr Nullable(Float64) DEFAULT NULL;
+    ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS min_price_inr Nullable(Float64) DEFAULT NULL;
+    ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS max_price_inr Nullable(Float64) DEFAULT NULL;
+"
+# Anomaly alerts table -- new, safe on existing deployments (no-op if already exists)
+docker exec clickhouse clickhouse-client --query "
+    CREATE TABLE IF NOT EXISTS stocks.market_alerts (
+        symbol         String,
+        alert_time     DateTime64(6),
+        observed_price Float64,
+        price_return   Float64,
+        z_score        Float64,
+        threshold      Float64,
+        window_size    UInt32,
+        sample_count   UInt32,
+        source         String,
+        created_at     DateTime DEFAULT now()
+    ) ENGINE = MergeTree()
+    ORDER BY (symbol, alert_time)
 "
 echo -e "${GREEN}ClickHouse tables ready.${NC}\n"
 

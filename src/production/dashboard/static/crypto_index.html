@@ -4,1014 +4,1252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Dashboard - Real-Time</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a2e;
-            --text-primary: #ffffff;
-            --text-secondary: #8888aa;
-            --accent-green: #00ff88;
-            --accent-red: #ff3366;
-            --accent-gold: #f7931a;
-            --border-color: #2a2a4a;
-            --glow-color: rgba(0, 255, 136, 0.1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            background: var(--bg-primary);
-            background-image:
-                radial-gradient(ellipse at top, rgba(0, 255, 136, 0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom, rgba(247, 147, 26, 0.03) 0%, transparent 50%);
-            color: var(--text-primary);
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 30px;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        h1 {
-            font-size: 1.8rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: linear-gradient(90deg, var(--accent-gold), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid var(--accent-green);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            color: var(--accent-green);
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .status-badge.disconnected {
-            background: rgba(255, 51, 102, 0.1);
-            border-color: var(--accent-red);
-            color: var(--accent-red);
-        }
-
-        .status-badge.disconnected .status-dot {
-            background: var(--accent-red);
-            animation: none;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--accent-green);
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .controls select,
-        .controls button {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-family: inherit;
-        }
-
-        .controls button:hover {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 10px var(--glow-color);
-        }
-
-        /* Price Cards */
-        .price-cards {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 1200px) {
-            .price-cards {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        @media (max-width: 700px) {
-            .price-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        .price-card {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .price-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .price-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--card-accent, var(--accent-gold));
-        }
-
-        .price-card .symbol {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .price-card .symbol .icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.65rem;
-            font-weight: bold;
-        }
-
-        .price-card .price {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-            font-family: 'SF Pro Display', -apple-system, sans-serif;
-        }
-
-        .price-card .details {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            line-height: 1.4;
-        }
-
-        /* Grid Layout */
-        .grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 1000px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid var(--border-color);
-        }
-
-        .card h2 {
-            font-size: 1rem;
-            margin-bottom: 20px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        /* Chart */
-        .chart-container {
-            position: relative;
-            height: 300px;
-        }
-
-        /* Table */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        th {
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        tr:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            border-top: 1px solid var(--border-color);
-            margin-top: 30px;
-        }
-
-        .source-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--bg-card);
-            padding: 4px 12px;
-            border-radius: 12px;
-            margin-left: 10px;
-        }
-
-        /* Loading & No data */
-        .loading,
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-secondary);
-        }
-
-        /* Individual Charts Grid */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        @media (max-width: 850px) {
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .chart-card h3 {
-            font-size: 1rem;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-    </style>
+    <title>CryptoPulse - Real-Time Insights for a Faster Market</title>
+    <meta name="description" content="Track live crypto trades, analyze market trends, and detect unusual price movements in one institutional dashboard.">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Chart.js 4 + Date-fns Time Adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- CryptoPulse Stylesheet -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <!-- Main Logic Script -->
+    <script src="/static/js/dashboard.js" defer></script>
 </head>
 
-<body>
-    <div class="container">
-        <header>
-            <div class="header-left">
-                <h1>₿ Crypto Dashboard</h1>
-                <span id="connectionStatus" class="status-badge">
-                    <span class="status-dot"></span>
-                    <span class="status-text">Coinbase Live</span>
-                </span>
+<body class="light-theme">
+    <!-- ========================================================================= -->
+    <!-- SECTION 1: CRYPTOPULSE LANDING HERO SECTION (TOP HALF OF USER DESIGN)      -->
+    <!-- ========================================================================= -->
+    <section class="landing-section" id="landingHero">
+        <!-- Landing Navigation Bar -->
+        <nav class="landing-navbar">
+            <div class="landing-logo">
+                <div class="logo-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 19 8.5 19 15.5 12 22 5 15.5 5 8.5 12 2"></polygon>
+                        <circle cx="12" cy="12" r="2.5"></circle>
+                        <line x1="12" y1="2" x2="12" y2="9.5"></line>
+                        <line x1="19" y1="8.5" x2="13.5" y2="12"></line>
+                        <line x1="19" y1="15.5" x2="13.5" y2="12"></line>
+                        <line x1="12" y1="22" x2="12" y2="14.5"></line>
+                        <line x1="5" y1="15.5" x2="10.5" y2="12"></line>
+                        <line x1="5" y1="8.5" x2="10.5" y2="12"></line>
+                    </svg>
+                </div>
+                <span class="logo-text">CryptoPulse</span>
             </div>
-            <div class="controls">
-                <button id="refreshBtn">⟳ Refresh</button>
+
+            <div class="landing-nav-links">
+                <a href="#landingHero" class="nav-link active">Home</a>
+                <a href="#featuresStrip" class="nav-link">Features</a>
+                <a href="#appDashboard" class="nav-link">Dashboard</a>
             </div>
-        </header>
 
-        <!-- Latest Prices -->
-        <section id="priceCards" class="price-cards">
-            <div class="loading">Connecting to market data...</div>
-        </section>
+            <div class="landing-nav-actions">
+                <button class="btn-dark-pill" onclick="scrollToDashboard()">
+                    <span>Open Dashboard</span>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </nav>
 
-        <!-- Chart Controls -->
-        <div class="card" style="margin-bottom: 20px;">
-            <div
-                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                <h2 style="margin: 0;">📈 Price Charts</h2>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <label style="color: var(--text-secondary); font-size: 0.85rem;">View:</label>
-                    <select id="chartMode"
-                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 12px; border-radius: 6px;">
-                        <option value="individual">Individual Charts</option>
-                        <option value="single">Single Chart</option>
-                    </select>
-                    <select id="singleSymbol"
-                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; display: none;">
-                        <option value="BTC">BTC</option>
-                        <option value="ETH">ETH</option>
-                        <option value="SOL">SOL</option>
-                        <option value="XRP">XRP</option>
-                        <option value="DOGE">DOGE</option>
-                        <option value="LTC">LTC</option>
-                    </select>
+        <!-- Hero Main Canvas with Floating Crypto Badges & Constellation Lines -->
+        <div class="hero-content">
+            <!-- Background Constellation Canvas -->
+            <div class="constellation-bg" aria-hidden="true">
+                <div class="circuit-grid"></div>
+                <!-- Floating Token Badges (Exact matches to reference image) -->
+                <div class="floating-token token-btc" style="top: 18%; left: 21%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#F7931A"/>
+                        <path fill="#FFF" d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.922-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.535 2.146-4.148.986-5.318.695l.95-3.805c1.17.292 4.929.872 4.368 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.697 3.61 2.733z"/>
+                    </svg>
+                </div>
+                <div class="floating-token token-eth" style="top: 38%; left: 26%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#627EEA"/>
+                        <path fill="#FFF" fill-opacity=".6" d="M16.498 4v8.87l7.497 3.35z"/>
+                        <path fill="#FFF" d="M16.498 4L9 16.22l7.498-3.35z"/>
+                        <path fill="#FFF" fill-opacity=".6" d="M16.498 21.968v6.027L24 17.616z"/>
+                        <path fill="#FFF" d="M16.498 27.995v-6.028L9 17.616z"/>
+                    </svg>
+                </div>
+                <div class="floating-token token-usdt" style="top: 58%; left: 14%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#26A17B"/>
+                        <path fill="#FFF" d="M17.922 17.383c-.11.008-.68.04-1.84.04-1.014 0-1.632-.033-1.836-.04-3.52-.16-6.14-1.07-6.14-2.18s2.62-2.02 6.14-2.18l.006 3.42c.22.016.85.05 1.83.05.93 0 1.58-.03 1.84-.05v-3.42c3.52.16 6.14 1.07 6.14 2.18s-2.62 2.02-6.14 2.18zm0-5.18v-2.31h5.86V7H8.22v2.893h5.86v2.31c-4.47.23-7.85 1.48-7.85 2.99 0 1.51 3.38 2.76 7.85 2.99v7.817h3.84V18.19c4.47-.23 7.85-1.48 7.85-2.99 0-1.51-3.38-2.76-7.85-2.99z"/>
+                    </svg>
+                </div>
+                <div class="floating-token token-eth-right" style="top: 20%; right: 28%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#1E293B"/>
+                        <path fill="#A5B4FC" fill-opacity=".6" d="M16.498 4v8.87l7.497 3.35z"/>
+                        <path fill="#818CF8" d="M16.498 4L9 16.22l7.498-3.35z"/>
+                        <path fill="#A5B4FC" fill-opacity=".6" d="M16.498 21.968v6.027L24 17.616z"/>
+                        <path fill="#818CF8" d="M16.498 27.995v-6.028L9 17.616z"/>
+                    </svg>
+                </div>
+                <div class="floating-token token-ada" style="top: 26%; right: 23%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#0033AD"/>
+                        <circle cx="16" cy="16" r="3.2" fill="#FFF"/>
+                        <circle cx="16" cy="9" r="1.6" fill="#FFF"/>
+                        <circle cx="16" cy="23" r="1.6" fill="#FFF"/>
+                        <circle cx="9" cy="16" r="1.6" fill="#FFF"/>
+                        <circle cx="23" cy="16" r="1.6" fill="#FFF"/>
+                    </svg>
+                </div>
+                <div class="floating-token token-chain" style="top: 32%; right: 15%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#375BD2"/>
+                        <path fill="#FFF" d="M16 8l-6.9 4v8l6.9 4 6.9-4v-8L16 8zm4.6 10.7l-4.6 2.7-4.6-2.7v-5.4l4.6-2.7 4.6 2.7v5.4z"/>
+                    </svg>
+                </div>
+                <div class="floating-token token-sol" style="top: 54%; right: 9%;">
+                    <svg width="22" height="22" viewBox="0 0 32 32">
+                        <circle cx="16" cy="16" r="16" fill="#14F195"/>
+                        <path fill="#1E293B" d="M9.8 19.8h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1H12.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1zm0-7.6h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1H12.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1zm2.4 3.8h-11.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Central Hero Copy -->
+            <div class="hero-badge-pill">
+                <span class="badge-dot"></span>
+                <span>Real-time Crypto Analytics</span>
+            </div>
+
+            <h1 class="hero-title">Real-Time Insights<br>for a Faster Market</h1>
+
+            <p class="hero-subtitle">
+                Track live crypto trades, analyze market trends, and detect unusual price movements &mdash; all in one powerful dashboard.
+            </p>
+
+            <div class="hero-cta-group">
+                <button class="btn-dark-pill" onclick="scrollToDashboard()">
+                    <span>Open Dashboard</span>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </button>
+                <button class="btn-light-pill" onclick="scrollToFeatures()">
+                    <span>Learn More</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 Key Feature Highlights (Exact strip from reference design) -->
+        <div class="features-strip" id="featuresStrip">
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <span class="feature-title">Live Market Data</span>
+                    <span class="feature-desc">Real-time trades from Coinbase</span>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="6"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <span class="feature-title">Advanced Analytics</span>
+                    <span class="feature-desc">One-minute window insights</span>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <span class="feature-title">Anomaly Detection</span>
+                    <span class="feature-desc">Spot unusual price movements</span>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <span class="feature-title">End-to-End Pipeline</span>
+                    <span class="feature-desc">Kafka &bull; Spark &bull; ClickHouse &bull; FastAPI</span>
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- Individual Charts Grid -->
-        <div id="individualCharts" class="charts-grid">
-            <div class="card chart-card">
-                <h3 style="color: #f7931a;">₿ BTC/USD</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="chart-BTC"></canvas></div>
-            </div>
-            <div class="card chart-card">
-                <h3 style="color: #627eea;">Ξ ETH/USD</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="chart-ETH"></canvas></div>
-            </div>
-            <div class="card chart-card">
-                <h3 style="color: #00ffa3;">◎ SOL/USD</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="chart-SOL"></canvas></div>
-            </div>
-            <div class="card chart-card">
-                <h3 style="color: #00aae4;">✕ XRP/USD</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="chart-XRP"></canvas></div>
-            </div>
-            <div class="card chart-card">
-                <h3 style="color: #c2a633;">Ð DOGE/USD</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="chart-DOGE"></canvas></div>
-            </div>
-            <div class="card chart-card">
-                <h3 style="color: #bfbbbb;">Ł LTC/USD</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="chart-LTC"></canvas></div>
-            </div>
-        </div>
-
-        <!-- Single Combined Chart -->
-        <div id="singleChartContainer" class="card" style="display: none; margin-bottom: 20px;">
-            <div class="chart-container" style="height: 350px;">
-                <canvas id="priceChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Recent Trades -->
-        <div class="card" style="margin-bottom: 20px;">
-            <h2>⚡ Recent Trades</h2>
-            <div id="recentTicks">
-                <div class="loading">Loading...</div>
-            </div>
-        </div>
-
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="card">
-                <h2>📊 Price Statistics</h2>
-                <div id="priceStats">
-                    <div class="loading">Loading...</div>
+    <!-- ========================================================================= -->
+    <!-- SECTION 2: CRYPTOPULSE INSTITUTIONAL DASHBOARD (BOTTOM HALF OF USER DESIGN) -->
+    <!-- ========================================================================= -->
+    <div class="dashboard-shell" id="appDashboard">
+        <!-- LEFT SIDEBAR -->
+        <aside class="dashboard-sidebar">
+            <!-- Sidebar Header / Logo -->
+            <div class="sidebar-brand">
+                <div class="logo-icon small">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 19 8.5 19 15.5 12 22 5 15.5 5 8.5 12 2"></polygon>
+                        <circle cx="12" cy="12" r="2.5"></circle>
+                        <line x1="12" y1="2" x2="12" y2="9.5"></line>
+                        <line x1="19" y1="8.5" x2="13.5" y2="12"></line>
+                        <line x1="19" y1="15.5" x2="13.5" y2="12"></line>
+                        <line x1="12" y1="22" x2="12" y2="14.5"></line>
+                        <line x1="5" y1="15.5" x2="10.5" y2="12"></line>
+                        <line x1="5" y1="8.5" x2="10.5" y2="12"></line>
+                    </svg>
                 </div>
+                <span class="brand-title">CryptoPulse</span>
             </div>
-            <div class="card">
-                <h2>📦 Volume (24h)</h2>
-                <div class="chart-container" style="height: 200px;">
-                    <canvas id="volumeChart"></canvas>
+
+            <!-- Sidebar Nav Links -->
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-section="dashboard" onclick="setSidebarSection('dashboard')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                        <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                        <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                        <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </button>
+
+                <button class="nav-item" data-section="live-market" onclick="setSidebarSection('live-market')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <span>Live Market</span>
+                </button>
+
+                <button class="nav-item" data-section="price-analytics" onclick="setSidebarSection('price-analytics')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Price Analytics</span>
+                </button>
+
+                <button class="nav-item" data-section="recent-trades" onclick="setSidebarSection('recent-trades')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Recent Trades</span>
+                </button>
+
+                <button class="nav-item" data-section="anomaly-alerts" onclick="setSidebarSection('anomaly-alerts')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>Anomaly Alerts</span>
+                    <span class="badge-counter" id="sidebarAlertCount">3</span>
+                </button>
+
+                <button class="nav-item" data-section="pipeline-health" onclick="setSidebarSection('pipeline-health')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Pipeline Health</span>
+                </button>
+
+            </nav>
+        </aside>
+
+        <!-- MAIN DASHBOARD CONTENT AREA -->
+        <main class="dashboard-main">
+            <!-- Top App Header Bar -->
+            <header class="app-topbar">
+                <div class="topbar-title-area">
+                    <h2 class="topbar-page-title">Market Overview</h2>
+                    <span class="topbar-page-subtitle">Real-time Crypto Analytics &amp; Anomaly Detection</span>
                 </div>
-            </div>
-        </div>
 
-        <footer>
-            <span id="totalCount">Total trades: --</span> |
-            <span id="lastUpdate">Last updated: --</span>
-            <span class="source-badge">Data: Coinbase WebSocket</span>
-        </footer>
-    </div>
+                <div class="topbar-right">
+                    <!-- Theme Toggle (Sun / Moon) -->
+                    <button class="topbar-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Theme">
+                        <svg class="sun-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <svg class="moon-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
 
-    <script>
-        // =============================================================================
-        // STATE
-        // =============================================================================
-        let priceChart = null;
-        let volumeChart = null;
-        let individualCharts = {};  // Store individual chart instances
-        let chartMode = 'individual';  // 'individual' or 'single'
-        let selectedSymbol = 'BTC';
+                    <!-- Live Indicator Badge -->
+                    <div class="live-status-badge">
+                        <span class="live-dot"></span>
+                        <span class="live-text">Live</span>
+                    </div>
 
-        // Crypto symbols to display
-        const SYMBOLS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LTC'];
-        const SYMBOLS_PARAM = SYMBOLS.join(',');
+                    <!-- Real-Time Date & Time -->
+                    <div class="topbar-clock" id="topbarLiveClock">
+                        Oct 25, 2026 20:42:18
+                    </div>
+                </div>
+            </header>
 
-        // Fixed color mapping for crypto (consistent colors everywhere)
-        const symbolColors = {
-            'BTC': '#f7931a',    // Bitcoin Orange
-            'ETH': '#627eea',    // Ethereum Blue
-            'SOL': '#00ffa3',    // Solana Green
-            'XRP': '#00aae4',    // XRP Blue
-            'DOGE': '#c2a633',   // Dogecoin Gold
-            'LTC': '#bfbbbb',    // Litecoin Silver
-        };
-
-        const symbolIcons = {
-            'BTC': '₿',
-            'ETH': 'Ξ',
-            'SOL': '◎',
-            'XRP': '✕',
-            'DOGE': 'Ð',
-            'LTC': 'Ł',
-        };
-
-        function getSymbolColor(symbol) {
-            if (symbolColors[symbol]) {
-                return symbolColors[symbol];
-            }
-            let hash = 0;
-            for (let i = 0; i < symbol.length; i++) {
-                hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const hue = Math.abs(hash % 360);
-            return `hsl(${hue}, 70%, 50%)`;
-        }
-
-        function parseTimestamp(ts) {
-            return new Date(ts.replace(' ', 'T') + 'Z');
-        }
-
-        function formatPrice(price) {
-            if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            if (price >= 1) return price.toFixed(2);
-            return price.toFixed(4);
-        }
-
-        // =============================================================================
-        // API CALLS
-        // =============================================================================
-        async function fetchAPI(endpoint) {
-            try {
-                const response = await fetch(`/api/${endpoint}`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
-            } catch (error) {
-                console.error(`Error fetching ${endpoint}:`, error);
-                return null;
-            }
-        }
-
-        // =============================================================================
-        // RENDER FUNCTIONS
-        // =============================================================================
-
-        function renderPriceCards(data) {
-            const container = document.getElementById('priceCards');
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="no-data">Waiting for market data... Make sure the crypto producer is running.</div>';
-                return;
-            }
-
-            const sortedData = [...data].sort((a, b) => a.symbol.localeCompare(b.symbol));
-
-            container.innerHTML = sortedData.map((item) => {
-                const color = getSymbolColor(item.symbol);
-                const icon = symbolIcons[item.symbol] || item.symbol[0];
-                return `
-                    <div class="price-card" style="--card-accent: ${color}">
-                        <div class="symbol">
-                            <span class="icon" style="background: ${color}22; color: ${color}">${icon}</span>
-                            ${item.symbol}/USD
-                        </div>
-                        <div class="price" style="color: ${color}">
-                            $${formatPrice(item.price)}
-                        </div>
-                        <div class="details">
-                            Volume: ${item.volume.toLocaleString()}<br>
-                            ${parseTimestamp(item.last_update).toLocaleTimeString()}
+            <!-- ============================================================= -->
+            <!-- VIEW 1: DASHBOARD OVERVIEW                                    -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view active" id="view-dashboard">
+                <section class="stat-cards-grid">
+                <!-- BTC-USD -->
+                <div class="stat-card" data-symbol="BTC" onclick="selectCardSymbol('BTC')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-btc">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#F7931A"/>
+                                    <path fill="#FFF" d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.922-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.535 2.146-4.148.986-5.318.695l.95-3.805c1.17.292 4.929.872 4.368 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.697 3.61 2.733z"/>
+                                </svg>
+                            </div>
+                            <span class="pair-code">BTC-USD</span>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
 
-        function renderPriceChart(data) {
-            if (!data || data.length === 0) {
-                return;
-            }
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceBTC">$67,420.50</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge positive" id="cardChangeBTC">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <span>+1.24%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineBTC" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 20 Q 20 22 35 15 T 70 8 T 100 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            if (chartMode === 'individual') {
-                renderIndividualCharts(data);
-            } else {
-                renderSingleChart(data);
-            }
-        }
+                <!-- ETH-USD -->
+                <div class="stat-card" data-symbol="ETH" onclick="selectCardSymbol('ETH')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-eth">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#627EEA"/>
+                                    <path fill="#FFF" fill-opacity=".6" d="M16.498 4v8.87l7.497 3.35z"/>
+                                    <path fill="#FFF" d="M16.498 4L9 16.22l7.498-3.35z"/>
+                                    <path fill="#FFF" fill-opacity=".6" d="M16.498 21.968v6.027L24 17.616z"/>
+                                    <path fill="#FFF" d="M16.498 27.995v-6.028L9 17.616z"/>
+                                </svg>
+                            </div>
+                            <span class="pair-code">ETH-USD</span>
+                        </div>
+                    </div>
 
-        function renderIndividualCharts(data) {
-            // Destroy existing individual charts
-            Object.values(individualCharts).forEach(chart => chart.destroy());
-            individualCharts = {};
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceETH">$2,543.18</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge negative" id="cardChangeETH">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                <span>-0.62%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineETH" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 6 Q 25 10 50 18 T 80 24 T 100 22" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            SYMBOLS.forEach(symbol => {
-                const canvas = document.getElementById(`chart-${symbol}`);
-                if (!canvas) return;
+                <!-- SOL-USD -->
+                <div class="stat-card" data-symbol="SOL" onclick="selectCardSymbol('SOL')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-sol">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#14F195"/>
+                                    <path fill="#0F172A" d="M9.8 19.8h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1H12.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1zm0-7.6h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1H12.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1zm2.4 3.8h-11.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1z"/>
+                                </svg>
+                            </div>
+                            <span class="pair-code">SOL-USD</span>
+                        </div>
+                    </div>
 
-                const ctx = canvas.getContext('2d');
-                const symbolData = data.filter(d => d.symbol === symbol);
-                const color = getSymbolColor(symbol);
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceSOL">$173.24</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge positive" id="cardChangeSOL">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <span>+2.31%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineSOL" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 22 Q 30 18 55 12 T 80 8 T 100 2" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                if (symbolData.length === 0) return;
+                <!-- USD/INR -->
+                <div class="stat-card" data-symbol="INR" onclick="setCurrencyToggle('INR')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-inr">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#F8FAFC"/>
+                                    <text x="16" y="22" font-size="18" font-weight="700" text-anchor="middle" fill="#0F172A">₹</text>
+                                </svg>
+                            </div>
+                            <span class="pair-code">USD/INR</span>
+                        </div>
+                    </div>
 
-                individualCharts[symbol] = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        datasets: [{
-                            label: symbol,
-                            data: symbolData.map(d => ({
-                                x: parseTimestamp(d.timestamp),
-                                y: d.price
-                            })),
-                            borderColor: color,
-                            backgroundColor: color + '20',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0,
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: false,
-                        interaction: { intersect: false, mode: 'index' },
-                        plugins: {
-                            legend: { display: false }
-                        },
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: { unit: 'minute' },
-                                grid: { color: '#2a2a4a' },
-                                ticks: { color: '#8888aa', maxTicksLimit: 6 }
-                            },
-                            y: {
-                                grid: { color: '#2a2a4a' },
-                                ticks: {
-                                    color: '#8888aa',
-                                    callback: (val) => '$' + formatPrice(val)
-                                }
-                            }
-                        }
-                    }
-                });
-            });
-        }
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceINR">88.01</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge positive" id="cardChangeINR">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <span>+0.12%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineINR" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 16 Q 30 20 50 14 T 75 10 T 100 7" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                </div>
+            </section>
 
-        function renderSingleChart(data) {
-            const canvas = document.getElementById('priceChart');
-            if (!canvas) return;
+            <!-- ============================================================= -->
+            <!-- ROW 2: PRICE HISTORY (LEFT) + ONE-MINUTE ANALYTICS (RIGHT)    -->
+            <!-- ============================================================= -->
+            <section class="main-charts-row">
+                <!-- Left: Price History Card -->
+                <div class="panel-card price-history-card" id="priceHistoryCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 20h9"></path>
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Price History</span>
+                        </div>
 
-            const ctx = canvas.getContext('2d');
+                        <div class="chart-filter-controls">
+                            <!-- Pair Dropdown -->
+                            <div class="custom-select-box">
+                                <select id="pairSelectDropdown" onchange="onPairDropdownChange(this.value)">
+                                    <option value="BTC" selected>BTC-USD</option>
+                                    <option value="ETH">ETH-USD</option>
+                                    <option value="SOL">SOL-USD</option>
+                                    <option value="XRP">XRP-USD</option>
+                                    <option value="DOGE">DOGE-USD</option>
+                                    <option value="LTC">LTC-USD</option>
+                                </select>
+                            </div>
 
-            if (priceChart) {
-                priceChart.destroy();
-                priceChart = null;
-            }
+                            <!-- Currency Dropdown -->
+                            <div class="custom-select-box">
+                                <select id="currencySelectDropdown" onchange="onCurrencyDropdownChange(this.value)">
+                                    <option value="USD" selected>USD</option>
+                                    <option value="INR">INR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-            // Filter for selected symbol only
-            const symbolData = data.filter(d => d.symbol === selectedSymbol);
-            const color = getSymbolColor(selectedSymbol);
+                    <!-- Interactive Chart Container -->
+                    <div class="chart-canvas-container">
+                        <canvas id="priceHistoryChart"></canvas>
+                        <!-- Floating Tooltip Badge Replica (matches reference screenshot) -->
+                        <div class="floating-price-tooltip" id="floatingPriceBadge">
+                            <span class="tooltip-val" id="tooltipPriceVal">$67,420.50</span>
+                            <span class="tooltip-time" id="tooltipTimeVal">20:30:00</span>
+                        </div>
+                    </div>
+                </div>
 
-            if (symbolData.length === 0) return;
+                <!-- Right: One-Minute Analytics Card -->
+                <div class="panel-card analytics-metrics-card" id="analyticsMetricsCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">One-Minute Analytics</span>
+                        </div>
 
-            priceChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: [{
-                        label: selectedSymbol + '/USD',
-                        data: symbolData.map(d => ({
-                            x: parseTimestamp(d.timestamp),
-                            y: d.price
-                        })),
-                        borderColor: color,
-                        backgroundColor: color + '20',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.2,
-                        pointRadius: 0,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    interaction: { intersect: false, mode: 'index' },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                color: '#8888aa',
-                                usePointStyle: true,
-                                padding: 20,
-                                font: { size: 14 }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: { unit: 'minute' },
-                            grid: { color: '#2a2a4a' },
-                            ticks: { color: '#8888aa' }
-                        },
-                        y: {
-                            grid: { color: '#2a2a4a' },
-                            ticks: {
-                                color: '#8888aa',
-                                callback: (val) => '$' + formatPrice(val)
-                            }
-                        }
-                    }
-                }
-            });
-        }
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="custom-select-box small">
+                                <select id="analyticsPairDropdown" onchange="onAnalyticsPairChange(this.value)">
+                                    <option value="BTC" selected>BTC-USD</option>
+                                    <option value="ETH">ETH-USD</option>
+                                    <option value="SOL">SOL-USD</option>
+                                    <option value="XRP">XRP-USD</option>
+                                    <option value="DOGE">DOGE-USD</option>
+                                    <option value="LTC">LTC-USD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-        function renderRecentTicks(data) {
-            const container = document.getElementById('recentTicks');
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="no-data">No recent trades</div>';
-                return;
-            }
+                    <!-- 2x3 Stat Metrics Grid -->
+                    <div class="analytics-stat-grid">
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblAvgPrice">Avg Price (USD)</span>
+                            <span class="metric-value" id="valAvgPrice">67,312.40</span>
+                        </div>
 
-            container.innerHTML = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Pair</th>
-                            <th class="text-right">Price</th>
-                            <th class="text-right">Size</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.slice(0, 10).map(item => {
-                const color = getSymbolColor(item.symbol);
-                return `
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblMinPrice">Min Price (USD)</span>
+                            <span class="metric-value" id="valMinPrice">66,915.20</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblMaxPrice">Max Price (USD)</span>
+                            <span class="metric-value" id="valMaxPrice">67,650.10</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblVwap">VWAP (USD)</span>
+                            <span class="metric-value" id="valVwap">67,308.25</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label">Total Volume</span>
+                            <span class="metric-value" id="valTotalVolume">12.8463</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label">Tick Count</span>
+                            <span class="metric-value" id="valTickCount">1,284</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================= -->
+            <!-- ROW 3: RECENT TRADES | ANOMALY ALERTS | PIPELINE HEALTH       -->
+            <!-- ============================================================= -->
+            <section class="bottom-tables-row">
+                <!-- 1. Recent Trades Table -->
+                <div class="panel-card bottom-card" id="recentTradesCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Recent Trades</span>
+                        </div>
+                        <button class="jump-page-link" onclick="setSidebarSection('recent-trades')">View Full Page &rarr;</button>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="recentTradesTable">
+                            <thead>
                                 <tr>
-                                    <td>${parseTimestamp(item.timestamp).toLocaleTimeString()}</td>
-                                    <td style="color: ${color}">${item.symbol}</td>
-                                    <td class="text-right">$${formatPrice(item.price)}</td>
-                                    <td class="text-right">${item.volume.toLocaleString()}</td>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price (INR)</th>
+                                    <th>Volume</th>
                                 </tr>
-                            `;
-            }).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-
-        function renderPriceStats(data) {
-            const container = document.getElementById('priceStats');
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="no-data">No statistics available</div>';
-                return;
-            }
-
-            const sortedData = [...data].sort((a, b) => a.symbol.localeCompare(b.symbol));
-
-            container.innerHTML = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Asset</th>
-                            <th class="text-right">Trades</th>
-                            <th class="text-right">Low</th>
-                            <th class="text-right">High</th>
-                            <th class="text-right">Avg</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sortedData.map(item => {
-                const color = getSymbolColor(item.symbol);
-                return `
+                            </thead>
+                            <tbody id="recentTradesBody">
                                 <tr>
-                                    <td style="color: ${color}">${item.symbol}</td>
-                                    <td class="text-right">${item.tick_count.toLocaleString()}</td>
-                                    <td class="text-right">$${formatPrice(item.min_price)}</td>
-                                    <td class="text-right">$${formatPrice(item.max_price)}</td>
-                                    <td class="text-right">$${formatPrice(item.avg_price)}</td>
+                                    <td>20:42:18</td>
+                                    <td><span class="sym-badge">BTC-USD</span></td>
+                                    <td>$67,420.50</td>
+                                    <td>₹5,93,82,246</td>
+                                    <td>0.0124</td>
                                 </tr>
-                            `;
-            }).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
+                                <tr>
+                                    <td>20:42:16</td>
+                                    <td><span class="sym-badge">BTC-USD</span></td>
+                                    <td>$67,418.20</td>
+                                    <td>₹5,93,80,202</td>
+                                    <td>0.0041</td>
+                                </tr>
+                                <tr>
+                                    <td>20:42:12</td>
+                                    <td><span class="sym-badge">ETH-USD</span></td>
+                                    <td>$2,543.18</td>
+                                    <td>₹2,24,05,241</td>
+                                    <td>0.0863</td>
+                                </tr>
+                                <tr>
+                                    <td>20:42:08</td>
+                                    <td><span class="sym-badge">SOL-USD</span></td>
+                                    <td>$173.24</td>
+                                    <td>₹15,24,512</td>
+                                    <td>1.4500</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-        function renderVolumeChart(data) {
-            const ctx = document.getElementById('volumeChart').getContext('2d');
+                <!-- 2. Anomaly Alerts Table -->
+                <div class="panel-card bottom-card" id="anomalyAlertsCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon alert-icon">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Anomaly Alerts</span>
+                        </div>
+                        <button class="jump-page-link" onclick="setSidebarSection('anomaly-alerts')">View Full Page &rarr;</button>
+                    </div>
 
-            if (volumeChart) {
-                volumeChart.destroy();
-                volumeChart = null;
-            }
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="anomalyAlertsTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Change</th>
+                                    <th>Threshold</th>
+                                    <th>Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="anomalyAlertsBody">
+                                <tr>
+                                    <td>20:36:15</td>
+                                    <td><span class="sym-badge">BTC-USD</span></td>
+                                    <td class="text-green">+2.41%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge high">High</span></td>
+                                </tr>
+                                <tr>
+                                    <td>20:28:07</td>
+                                    <td><span class="sym-badge">SOL-USD</span></td>
+                                    <td class="text-red">-2.12%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge high">High</span></td>
+                                </tr>
+                                <tr>
+                                    <td>20:15:22</td>
+                                    <td><span class="sym-badge">ETH-USD</span></td>
+                                    <td class="text-green">+2.08%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge medium">Medium</span></td>
+                                </tr>
+                                <tr>
+                                    <td>19:58:10</td>
+                                    <td><span class="sym-badge">XRP-USD</span></td>
+                                    <td class="text-red">-1.94%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge medium">Medium</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-            if (!data || data.length === 0) {
-                return;
-            }
+                <!-- 3. Pipeline Health Card -->
+                <div class="panel-card bottom-card" id="pipelineHealthCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Pipeline Health</span>
+                        </div>
+                        <button class="jump-page-link" onclick="setSidebarSection('pipeline-health')">View Full Page &rarr;</button>
+                    </div>
 
-            const sortedData = [...data].sort((a, b) => a.symbol.localeCompare(b.symbol));
-            const chartData = {
-                labels: sortedData.map(d => d.symbol),
-                datasets: [{
-                    data: sortedData.map(d => d.total_volume),
-                    backgroundColor: sortedData.map((d) => getSymbolColor(d.symbol)),
-                    borderWidth: 0,
-                    borderRadius: 4,
-                }]
-            };
+                    <div class="pipeline-health-list">
+                        <div class="health-row">
+                            <span class="health-label">Kafka Ingestion Rate</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valKafkaRate">1,240 msgs/s</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 10 Q 15 14 25 8 T 50 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
 
-            volumeChart = new Chart(ctx, {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#8888aa' }
-                        },
-                        y: {
-                            grid: { color: '#2a2a4a' },
-                            ticks: { color: '#8888aa' }
-                        }
-                    }
-                }
-            });
-        }
+                        <div class="health-row">
+                            <span class="health-label">Spark Processing Latency</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valSparkLatency">1.8 s</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 6 Q 15 4 30 11 T 50 8" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
 
-        function updateFooter(count) {
-            document.getElementById('totalCount').textContent = `Total trades: ${count ? count.toLocaleString() : '--'}`;
-            document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
-        }
+                        <div class="health-row">
+                            <span class="health-label">ClickHouse Write Rate</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valClickhouseRate">1,210 rows/s</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 12 Q 18 10 32 6 T 50 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
 
-        // =============================================================================
-        // MAIN REFRESH (for initial load and manual refresh)
-        // =============================================================================
+                        <div class="health-row">
+                            <span class="health-label">API Response Time</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valApiLatency">85 ms</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 8 Q 20 6 35 10 T 50 7" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            </div> <!-- /view-dashboard -->
 
-        async function refresh() {
-            try {
-                const [latest, history, recent, stats, count] = await Promise.all([
-                    fetchAPI(`latest?symbols=${SYMBOLS_PARAM}`),
-                    fetchAPI(`history?symbols=${SYMBOLS_PARAM}&minutes=60`),
-                    fetchAPI(`recent?symbols=${SYMBOLS_PARAM}&limit=20`),
-                    fetchAPI(`stats?symbols=${SYMBOLS_PARAM}`),
-                    fetchAPI(`count?symbols=${SYMBOLS_PARAM}`)
-                ]);
+            <!-- ============================================================= -->
+            <!-- VIEW 2: DEDICATED LIVE MARKET STREAM                          -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-live-market">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            WebSocket: Connected (Coinbase Pro)
+                        </span>
+                        <div class="custom-select-box">
+                            <select id="liveMarketSymbolSelect" onchange="onLiveMarketSelect(this.value)">
+                                <option value="BTC" selected>BTC-USD</option>
+                                <option value="ETH">ETH-USD</option>
+                                <option value="SOL">SOL-USD</option>
+                                <option value="XRP">XRP-USD</option>
+                                <option value="DOGE">DOGE-USD</option>
+                                <option value="LTC">LTC-USD</option>
+                            </select>
+                        </div>
+                        <div class="custom-select-box">
+                            <select onchange="onCurrencyDropdownChange(this.value)">
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="INR">INR (₹)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <span style="font-size: 0.82rem; color: var(--text-secondary);">Throughput: <strong style="color:var(--text-primary);">~1,240 ticks/sec</strong></span>
+                    </div>
+                </div>
 
-                renderPriceCards(latest);
-                renderPriceChart(history);
-                renderRecentTicks(recent);
-                renderPriceStats(stats);
-                renderVolumeChart(stats);
-                updateFooter(count?.count);
-            } catch (error) {
-                console.error('Refresh error:', error);
-            }
-        }
+                <!-- KPI Metric Grid -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Current Price</span>
+                        <span class="kpi-card-value" id="liveMarketCurrentPrice">$67,420.50</span>
+                        <span class="kpi-card-sub text-green" id="liveMarketChange">+1.24% today</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">24h High</span>
+                        <span class="kpi-card-value" id="liveMarketHigh">$68,110.00</span>
+                        <span class="kpi-card-sub">Peak intra-day</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">24h Low</span>
+                        <span class="kpi-card-value" id="liveMarketLow">$66,240.80</span>
+                        <span class="kpi-card-sub">Support floor</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">24h Volume</span>
+                        <span class="kpi-card-value" id="liveMarketVolume">14,820 BTC</span>
+                        <span class="kpi-card-sub">Total spot depth</span>
+                    </div>
+                </div>
 
-        // =============================================================================
-        // SSE - Real-time Stream
-        // =============================================================================
+                <!-- Live Stream Visual Panel -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title" id="liveMarketChartTitle">BTC-USD Real-Time Stream</span>
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-secondary);">Direct tick stream from Coinbase WebSocket</div>
+                    </div>
+                    <div class="chart-canvas-container" style="height: 380px;">
+                        <canvas id="liveMarketDedicatedChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
-        let eventSource = null;
-        let tickBuffer = [];  // Buffer incoming ticks
-        let statsRefreshTimer = null;
+            <!-- ============================================================= -->
+            <!-- VIEW 3: DEDICATED PRICE ANALYTICS                             -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-price-analytics">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Engine: 1-Minute PySpark Microstructure Aggregation
+                        </span>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <div class="custom-select-box">
+                            <select onchange="onCurrencyDropdownChange(this.value)">
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="INR">INR (₹)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-        function updateConnectionStatus(connected) {
-            const status = document.getElementById('connectionStatus');
-            if (connected) {
-                status.classList.remove('disconnected');
-                status.innerHTML = '<span class="status-dot"></span><span class="status-text">Coinbase Live</span>';
-            } else {
-                status.classList.add('disconnected');
-                status.innerHTML = '<span class="status-dot"></span><span class="status-text">Reconnecting...</span>';
-            }
-        }
+                <!-- Analytics Benchmark KPIs -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Window Strategy</span>
+                        <span class="kpi-card-value">60s Tumbling</span>
+                        <span class="kpi-card-sub">PySpark Watermark: 10s</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Average Spread</span>
+                        <span class="kpi-card-value">0.02%</span>
+                        <span class="kpi-card-sub">Institutional tightness</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Tick Throughput</span>
+                        <span class="kpi-card-value">1,240 /s</span>
+                        <span class="kpi-card-sub">Real-time Kafka ingestion</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Micro-Price VWAP</span>
+                        <span class="kpi-card-value" id="analyticsMatrixVwap">$67,308.25</span>
+                        <span class="kpi-card-sub">Volume-weighted benchmark</span>
+                    </div>
+                </div>
 
-        function connectSSE() {
-            if (eventSource) eventSource.close();
+                <!-- Full Multi-Asset Matrix -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Multi-Asset 1-Minute Microstructure Comparison</span>
+                        </div>
+                    </div>
 
-            eventSource = new EventSource(`/api/stream?symbols=${SYMBOLS_PARAM}`);
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="analyticsMatrixTable">
+                            <thead>
+                                <tr>
+                                    <th>Asset</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price (INR)</th>
+                                    <th>1m Avg</th>
+                                    <th>1m Min</th>
+                                    <th>1m Max</th>
+                                    <th>1m VWAP</th>
+                                    <th>1m Volume</th>
+                                    <th>24h Trend</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analyticsMatrixBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-            eventSource.onopen = () => {
-                updateConnectionStatus(true);
-            };
+            <!-- ============================================================= -->
+            <!-- VIEW 4: DEDICATED RECENT TRADES PAGE                          -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-recent-trades">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Live WebSocket Feed Active
+                        </span>
+                        <div class="custom-select-box">
+                            <select id="tradesSymbolFilter" onchange="filterDedicatedTrades(this.value)">
+                                <option value="ALL" selected>All Symbols</option>
+                                <option value="BTC">BTC-USD</option>
+                                <option value="ETH">ETH-USD</option>
+                                <option value="SOL">SOL-USD</option>
+                                <option value="XRP">XRP-USD</option>
+                                <option value="DOGE">DOGE-USD</option>
+                                <option value="LTC">LTC-USD</option>
+                            </select>
+                        </div>
+                        <div class="custom-select-box">
+                            <select onchange="onCurrencyDropdownChange(this.value)">
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="INR">INR (₹)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="simulateMicroTick(); showToast('Simulated Trade Ingested');">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span>Simulate Trade</span>
+                        </button>
+                    </div>
+                </div>
 
-            eventSource.onmessage = (event) => {
-                try {
-                    const ticks = JSON.parse(event.data);
-                    if (ticks.error) {
-                        console.error('SSE error:', ticks.error);
-                        return;
-                    }
-                    if (ticks.length > 0) {
-                        // Update price cards with latest prices
-                        const latestBySymbol = {};
-                        ticks.forEach(t => {
-                            latestBySymbol[t.symbol] = t;
-                        });
-                        updatePriceCardsLive(latestBySymbol);
+                <!-- KPI Summary Grid -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Total Trades Ingested</span>
+                        <span class="kpi-card-value" id="dedicatedTradesCount">1,428,950</span>
+                        <span class="kpi-card-sub">In ClickHouse trades table</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Avg Trade Size</span>
+                        <span class="kpi-card-value">0.142 BTC</span>
+                        <span class="kpi-card-sub">Institutional spot order flow</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Taker Buy / Sell</span>
+                        <span class="kpi-card-value text-green">54.2% / 45.8%</span>
+                        <span class="kpi-card-sub">Bullish net buying pressure</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">USD/INR Base FX</span>
+                        <span class="kpi-card-value" id="dedicatedFxRate">₹88.01</span>
+                        <span class="kpi-card-sub">Real-time conversion factor</span>
+                    </div>
+                </div>
 
-                        // Prepend new ticks to recent trades
-                        updateRecentTicksLive(ticks);
+                <!-- Full Dedicated Blotter Table -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Live Trades Execution Blotter</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Direct stream from Coinbase Pro WebSocket</span>
+                    </div>
 
-                        // Update footer
-                        updateFooter(null);
-                    }
-                } catch (e) {
-                    console.error('SSE parse error:', e);
-                }
-            };
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="dedicatedTradesTable">
+                            <thead>
+                                <tr>
+                                    <th>Trade ID</th>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Side</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price (INR)</th>
+                                    <th>Size / Volume</th>
+                                    <th>Notional Value</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dedicatedTradesBody">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-            eventSource.onerror = () => {
-                updateConnectionStatus(false);
-                eventSource.close();
-                // Reconnect after 2 seconds
-                setTimeout(connectSSE, 2000);
-            };
-        }
+            <!-- ============================================================= -->
+            <!-- VIEW 5: DEDICATED ANOMALY ALERTS PAGE                         -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-anomaly-alerts">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Z-Score Model Active (|Z| &ge; 3.0&sigma;)
+                        </span>
+                        <div class="custom-select-box">
+                            <select id="alertsFilterSeverity" onchange="filterDedicatedAlerts(this.value)">
+                                <option value="ALL" selected>All Severities</option>
+                                <option value="high">High Severity (|Z| &ge; 3.5&sigma;)</option>
+                                <option value="medium">Medium Severity (|Z| &ge; 3.0&sigma;)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="simulateAnomalyAlert()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            <span>Simulate Volatility Alert</span>
+                        </button>
+                    </div>
+                </div>
 
-        function updatePriceCardsLive(latestBySymbol) {
-            Object.entries(latestBySymbol).forEach(([symbol, tick]) => {
-                const cards = document.querySelectorAll('.price-card');
-                cards.forEach(card => {
-                    if (card.querySelector('.symbol')?.textContent?.includes(symbol)) {
-                        const priceEl = card.querySelector('.price');
-                        const detailsEl = card.querySelector('.details');
-                        if (priceEl) {
-                            const oldPrice = parseFloat(priceEl.textContent.replace(/[$,]/g, ''));
-                            priceEl.textContent = '$' + formatPrice(tick.price);
-                            // Flash green/red on price change
-                            if (tick.price > oldPrice) {
-                                priceEl.style.textShadow = '0 0 10px var(--accent-green)';
-                            } else if (tick.price < oldPrice) {
-                                priceEl.style.textShadow = '0 0 10px var(--accent-red)';
-                            }
-                            setTimeout(() => { priceEl.style.textShadow = 'none'; }, 300);
-                        }
-                        if (detailsEl) {
-                            detailsEl.innerHTML = `Volume: ${tick.volume.toLocaleString()}<br>${new Date(tick.timestamp.replace(' ', 'T') + 'Z').toLocaleTimeString()}`;
-                        }
-                    }
-                });
-            });
-        }
+                <!-- Anomaly KPI Summary -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Total Outliers Today</span>
+                        <span class="kpi-card-value text-red" id="dedicatedAlertsTotal">14</span>
+                        <span class="kpi-card-sub">Surpassed &plusmn;3.0&sigma; volatility bands</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Max Recorded Z-Score</span>
+                        <span class="kpi-card-value">+3.84&sigma;</span>
+                        <span class="kpi-card-sub">BTC-USD Flash movement</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Detection Latency</span>
+                        <span class="kpi-card-value">&lt; 180 ms</span>
+                        <span class="kpi-card-sub">Sub-second notification pipeline</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Engine Architecture</span>
+                        <span class="kpi-card-value">PySpark + ClickHouse</span>
+                        <span class="kpi-card-sub">Stateless rolling micro-aggregates</span>
+                    </div>
+                </div>
 
-        function updateRecentTicksLive(newTicks) {
-            const container = document.getElementById('recentTicks');
-            const tbody = container.querySelector('tbody');
-            if (!tbody) return;
+                <!-- Full Dedicated Anomaly Log Table -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon alert-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Real-Time Anomaly &amp; Volatility Audit Trail</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Filtered by statistical significance</span>
+                    </div>
 
-            // Prepend new rows
-            const newRows = newTicks.reverse().map(item => {
-                const color = getSymbolColor(item.symbol);
-                const tr = document.createElement('tr');
-                tr.style.background = 'rgba(0, 255, 136, 0.05)';
-                tr.innerHTML = `
-                    <td>${parseTimestamp(item.timestamp).toLocaleTimeString()}</td>
-                    <td style="color: ${color}">${item.symbol}</td>
-                    <td class="text-right">$${formatPrice(item.price)}</td>
-                    <td class="text-right">${item.volume.toLocaleString()}</td>
-                `;
-                setTimeout(() => { tr.style.background = ''; }, 500);
-                return tr;
-            });
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="dedicatedAlertsTable">
+                            <thead>
+                                <tr>
+                                    <th>Alert Time</th>
+                                    <th>Symbol</th>
+                                    <th>Classification</th>
+                                    <th>Price Return</th>
+                                    <th>Z-Score</th>
+                                    <th>Threshold</th>
+                                    <th>Severity</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dedicatedAlertsBody">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-            newRows.forEach(row => tbody.insertBefore(row, tbody.firstChild));
+            <!-- ============================================================= -->
+            <!-- VIEW 6: DEDICATED PIPELINE HEALTH & TELEMETRY PAGE            -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-pipeline-health">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            End-to-End Pipeline: All 4 Nodes Operational
+                        </span>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="fetchLivePipelineData(); showToast('Telemetry metrics refreshed');">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span>Refresh Telemetry</span>
+                        </button>
+                    </div>
+                </div>
 
-            // Keep only 10 rows
-            while (tbody.children.length > 10) {
-                tbody.removeChild(tbody.lastChild);
-            }
-        }
+                <!-- 4 Major Telemetry KPI Cards -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Kafka Ingestion</span>
+                        <span class="kpi-card-value text-green" id="phKafkaRate">1,240 msgs/s</span>
+                        <span class="kpi-card-sub">Topic: crypto-ticks &bull; 0 lag</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Spark Streaming Latency</span>
+                        <span class="kpi-card-value text-green" id="phSparkLatency">1.8 s</span>
+                        <span class="kpi-card-sub">Watermark: 10s &bull; Tumbling window</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">ClickHouse Ingestion</span>
+                        <span class="kpi-card-value text-green" id="phClickhouseRate">1,210 rows/s</span>
+                        <span class="kpi-card-sub">ReplacingMergeTree table</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">API Response Time</span>
+                        <span class="kpi-card-value text-green" id="phApiLatency">85 ms</span>
+                        <span class="kpi-card-sub">FastAPI async roundtrip</span>
+                    </div>
+                </div>
 
-        // =============================================================================
-        // EVENT LISTENERS
-        // =============================================================================
+                <!-- Distributed Architecture Components -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Infrastructure Component Health</span>
+                        </div>
+                    </div>
 
-        document.getElementById('refreshBtn').addEventListener('click', refresh);
+                    <div class="services-health-grid">
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">Coinbase WebSocket Ingestion</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">wss://ws-feed.exchange.coinbase.com</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> Connected</span>
+                        </div>
 
-        // Chart mode selector
-        document.getElementById('chartMode').addEventListener('change', (e) => {
-            chartMode = e.target.value;
-            const singleSymbolSelect = document.getElementById('singleSymbol');
-            const individualChartsDiv = document.getElementById('individualCharts');
-            const singleChartDiv = document.getElementById('singleChartContainer');
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">Apache Kafka (KRaft mode)</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Port 9092 &bull; Broker cluster active</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> Healthy</span>
+                        </div>
 
-            if (chartMode === 'individual') {
-                singleSymbolSelect.style.display = 'none';
-                individualChartsDiv.style.display = 'grid';
-                singleChartDiv.style.display = 'none';
-            } else {
-                singleSymbolSelect.style.display = 'block';
-                individualChartsDiv.style.display = 'none';
-                singleChartDiv.style.display = 'block';
-            }
-            refresh();
-        });
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">Apache Spark 3.5 Streaming</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Micro-batch processing active</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> Running</span>
+                        </div>
 
-        // Single symbol selector
-        document.getElementById('singleSymbol').addEventListener('change', (e) => {
-            selectedSymbol = e.target.value;
-            refresh();
-        });
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">ClickHouse Columnar Database</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Port 8123 &bull; Database: crypto_db</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> 1.4M+ Rows</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-        // =============================================================================
-        // INIT
-        // =============================================================================
+    <!-- ========================================================================= -->
+    <!-- PIPELINE TELEMETRY MODAL                                                  -->
+    <!-- ========================================================================= -->
+    <div class="modal-backdrop" id="telemetryModal" onclick="closeModalOnBackdrop(event, 'telemetryModal')">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>Pipeline Health & Telemetry</h3>
+                <button class="modal-close-btn" onclick="closeTelemetryModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="telemetryModalContent">
+                <div class="telemetry-grid">
+                    <div class="telemetry-box">
+                        <span class="t-label">Kafka Ingestion</span>
+                        <span class="t-val" id="tKafkaVal">1,240 msgs/s</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="t-label">Spark Streaming Latency</span>
+                        <span class="t-val" id="tSparkVal">1.8 s</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="t-label">ClickHouse Ingestion</span>
+                        <span class="t-val" id="tChVal">1,210 rows/s</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="t-label">API Roundtrip</span>
+                        <span class="t-val" id="tApiVal">85 ms</span>
+                    </div>
+                </div>
+                <p style="margin-top: 14px; font-size: 0.8rem; color: #64748B;">
+                    Architecture: Coinbase WebSocket &rarr; Apache Kafka (KRaft) &rarr; PySpark Structured Streaming &rarr; ClickHouse OLAP &rarr; FastAPI.
+                </p>
+            </div>
+        </div>
+    </div>
 
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js';
-        script.onload = () => {
-            // Initial full load
-            refresh();
-            // Connect SSE for real-time tick updates
-            connectSSE();
-            // Refresh charts and stats every 5s (heavier queries)
-            statsRefreshTimer = setInterval(async () => {
-                const [history, stats, count] = await Promise.all([
-                    fetchAPI(`history?symbols=${SYMBOLS_PARAM}&minutes=60`),
-                    fetchAPI(`stats?symbols=${SYMBOLS_PARAM}`),
-                    fetchAPI(`count?symbols=${SYMBOLS_PARAM}`)
-                ]);
-                renderPriceChart(history);
-                renderPriceStats(stats);
-                renderVolumeChart(stats);
-                updateFooter(count?.count);
-            }, 5000);
-        };
-        document.head.appendChild(script);
-    </script>
+    <!-- Toast Notification Element -->
+    <div id="toast" class="toast-notification"></div>
 </body>
 
 </html>

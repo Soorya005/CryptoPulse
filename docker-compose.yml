@@ -26,11 +26,18 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # Constrain Kafka JVM heap. KAFKA_HEAP_OPTS is the env var read by the
+      # apache/kafka image entrypoint (distinct from Confluent's KAFKA_JVM_PERFORMANCE_OPTS).
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 900m
 
   # ClickHouse - Analytics Database
   clickhouse:
@@ -50,6 +57,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1500m
 
   # =============================================================================
   # PRODUCER (production - real-time crypto from Coinbase)
@@ -60,6 +71,7 @@ services:
       context: ./src/production/producer
       dockerfile: Dockerfile.crypto-producer
     container_name: crypto-producer
+    restart: unless-stopped
     depends_on:
       kafka:
         condition: service_healthy
@@ -67,6 +79,10 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     profiles:
       - crypto
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   # =============================================================================
   # CONSUMERS (production - writes to ClickHouse)
@@ -89,6 +105,10 @@ services:
       CLICKHOUSE_PORT: "8123"
     profiles:
       - spark_microbatch
+    deploy:
+      resources:
+        limits:
+          memory: 2000m
 
   # Spark streaming consumer (windowed aggregations) -> ClickHouse
   spark-streaming:
@@ -96,6 +116,7 @@ services:
       context: ./src/production/consumer
       dockerfile: Dockerfile.spark-consumer
     container_name: spark-streaming
+    restart: unless-stopped
     depends_on:
       kafka:
         condition: service_healthy
@@ -109,12 +130,18 @@ services:
       CHECKPOINT_DIR_AGG: /checkpoints/windowed_agg
     volumes:
       - spark_checkpoints:/checkpoints
+      - ./src/production/consumer/spark_streaming_clickhouse_consumer.py:/app/spark_streaming_clickhouse_consumer.py:ro
     command: >
       /opt/spark/bin/spark-submit
+      --driver-memory 1g
       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,com.clickhouse:clickhouse-jdbc:0.6.0,org.apache.httpcomponents.client5:httpclient5:5.3.1
       spark_streaming_clickhouse_consumer.py
     profiles:
       - spark_streaming
+    deploy:
+      resources:
+        limits:
+          memory: 2000m
 
   # Flink consumer -> ClickHouse
   flink-consumer:
@@ -143,6 +170,7 @@ services:
       context: ./src/production/dashboard
       dockerfile: Dockerfile.web-dashboard
     container_name: web-dashboard
+    restart: unless-stopped
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -152,8 +180,55 @@ services:
       DASHBOARD_MODE: ${DASHBOARD_MODE:-crypto}
     ports:
       - "8502:8502"
+    volumes:
+      - ./src/production/dashboard/static:/app/static:ro
+      - ./src/production/dashboard/web_app.py:/app/web_app.py:ro
+      - ./src/production/dashboard/cursor_tracker.py:/app/cursor_tracker.py:ro
+      - ./src/production/dashboard/webhook_dispatcher.py:/app/webhook_dispatcher.py:ro
     profiles:
       - web
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ===========================================================================
+  # ANOMALY DETECTOR -- lightweight Z-score consumer -> stocks.market_alerts
+  # Profile: anomaly (not activated by any existing ./run.sh invocation)
+  #
+  # To start alongside the main pipeline:
+  #   docker compose \
+  #     --profile spark_streaming --profile crypto --profile web --profile anomaly \
+  #     up --build
+  # ===========================================================================
+  anomaly-detector:
+    build:
+      context: ./src/production/consumer
+      dockerfile: Dockerfile.anomaly-detector
+    container_name: anomaly-detector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      ANOMALY_THRESHOLD: "3.0"       # |Z-score| >= this triggers an alert
+      ANOMALY_MIN_SAMPLES: "10"      # min prior observations before scoring
+      ANOMALY_WINDOW_SIZE: "30"      # rolling return history length per symbol
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - ./src/production/consumer/anomaly_detector.py:/app/anomaly_detector.py:ro
+      - ./src/production/consumer/webhook_dispatcher.py:/app/webhook_dispatcher.py:ro
+    profiles:
+      - anomaly
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
 # =============================================================================
 # VOLUMES
