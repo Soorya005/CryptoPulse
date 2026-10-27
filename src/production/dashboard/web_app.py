@@ -177,16 +177,51 @@ except ImportError:
 # =============================================================================
 
 @app.get("/")
-async def root():
-    """Serve the main dashboard page based on mode."""
+async def root(request: Request):
+    """Serve the landing page or terminal based on query parameter and mode."""
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
         "Expires": "0",
     }
+    view = request.query_params.get("view", "").lower()
+    if view in ("terminal", "dashboard", "app"):
+        return FileResponse(os.path.join(STATIC_DIR, "crypto_index.html"), headers=headers)
+    
     if DASHBOARD_MODE == "crypto":
+        # Check if landing.html exists, else fallback to crypto_index.html
+        landing_path = os.path.join(STATIC_DIR, "landing.html")
+        if os.path.exists(landing_path):
+            return FileResponse(landing_path, headers=headers)
         return FileResponse(os.path.join(STATIC_DIR, "crypto_index.html"), headers=headers)
     return FileResponse(os.path.join(STATIC_DIR, "stock_index.html"), headers=headers)
+
+
+@app.get("/landing")
+async def landing():
+    """Explicit landing page route."""
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    landing_path = os.path.join(STATIC_DIR, "landing.html")
+    if os.path.exists(landing_path):
+        return FileResponse(landing_path, headers=headers)
+    return FileResponse(os.path.join(STATIC_DIR, "crypto_index.html"), headers=headers)
+
+
+@app.get("/app")
+@app.get("/dashboard")
+@app.get("/terminal")
+async def terminal():
+    """Direct route to the full institutional trading terminal."""
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    return FileResponse(os.path.join(STATIC_DIR, "crypto_index.html"), headers=headers)
 
 
 @app.get("/api/latest")

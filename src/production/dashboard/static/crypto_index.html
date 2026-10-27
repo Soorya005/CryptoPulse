@@ -230,6 +230,13 @@
 
             <!-- Sidebar Nav Links -->
             <nav class="sidebar-nav">
+                <a href="/" class="nav-item" style="text-decoration:none; color:var(--text-secondary); margin-bottom: 4px; border-bottom: 1px dashed var(--border-card);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    <span>&larr; Landing Page</span>
+                </a>
                 <button class="nav-item active" data-section="dashboard" onclick="setSidebarSection('dashboard')">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="7" height="9" rx="1"></rect>
@@ -309,6 +316,15 @@
                 </div>
 
                 <div class="topbar-right">
+                    <!-- Link to Landing Page -->
+                    <a href="/" class="topbar-btn" title="Return to Landing Page" style="text-decoration:none; display:flex; align-items:center; gap:6px; padding:0 12px; width:auto; font-size:0.8rem; font-weight:600; color:var(--text-secondary);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        <span>Landing Page</span>
+                    </a>
+
                     <!-- Theme Toggle (Sun / Moon) -->
                     <button class="topbar-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Theme">
                         <svg class="sun-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
