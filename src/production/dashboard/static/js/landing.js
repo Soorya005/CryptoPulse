@@ -104,16 +104,16 @@ function renderShowcaseRadar(data) {
 
         return `
             <tr>
-                <td><span class="sym-code">${sym}-USD</span></td>
-                <td style="color:var(--lp-text-primary); font-weight:600;">$${cb.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: (cb < 1 ? 4 : 2)})}</td>
-                <td style="color:var(--lp-text-primary); font-weight:600;">$${kr.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: (kr < 1 ? 4 : 2)})}</td>
-                <td style="color:${isArb ? 'var(--lp-green)' : 'var(--lp-text-secondary)'}; font-weight:700;">
+                <td><span style="font-weight:700; color:var(--c-aubergine);">${sym}-USD</span></td>
+                <td style="color:var(--c-aubergine); font-weight:600;">$${cb.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: (cb < 1 ? 4 : 2)})}</td>
+                <td style="color:var(--c-aubergine); font-weight:600;">$${kr.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: (kr < 1 ? 4 : 2)})}</td>
+                <td style="color:${isArb ? 'var(--c-green)' : 'var(--c-marigold-deep)'}; font-weight:700;">
                     ${gross.toFixed(3)}%
                 </td>
-                <td style="color:var(--lp-text-muted);">&Delta;t ${skew}ms</td>
+                <td style="color:var(--c-aubergine-mid);">&Delta;t ${skew}ms</td>
                 <td>
-                    <span class="badge-hurdle-status ${isArb ? 'active' : 'inside'}">
-                        ${isArb ? 'Viable Spread' : 'Inside Hurdle (0.35%)'}
+                    <span class="pill-status-editorial ${isArb ? 'viable' : 'hurdle'}">
+                        ${isArb ? 'Viable Spread' : 'Inside 35 bps Hurdle'}
                     </span>
                 </td>
             </tr>
@@ -139,12 +139,12 @@ function renderShowcaseIndia(data) {
 
         return `
             <tr>
-                <td><span class="sym-code" style="color:var(--lp-marigold-bright);">${sym}-INR</span></td>
-                <td style="color:var(--lp-text-primary); font-weight:700;">₹${Math.round(inrPrice).toLocaleString('en-IN')}</td>
-                <td style="color:var(--lp-text-muted);">₹${Math.round(globalImplied).toLocaleString('en-IN')}</td>
-                <td style="color:var(--lp-marigold-bright); font-weight:700;">+${prem.toFixed(2)}%</td>
+                <td><span style="font-weight:700; color:var(--c-aubergine);">${sym}-INR</span></td>
+                <td style="color:var(--c-aubergine); font-weight:700;">₹${Math.round(inrPrice).toLocaleString('en-IN')}</td>
+                <td style="color:var(--c-aubergine-mid);">₹${Math.round(globalImplied).toLocaleString('en-IN')}</td>
+                <td style="color:var(--c-marigold-deep); font-weight:700;">+${prem.toFixed(2)}%</td>
                 <td>
-                    <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; background: rgba(244, 63, 94, 0.12); color: var(--lp-red); border: 1px solid rgba(244, 63, 94, 0.25);">
+                    <span class="pill-status-editorial locked">
                         1% TDS &bull; LRS Locked
                     </span>
                 </td>
@@ -177,13 +177,13 @@ function renderMarqueeTape() {
         const prem = i.premium_pct !== undefined ? i.premium_pct : QUANT_BASELINES[sym].inr_prem;
 
         return `
-            <div class="ticker-entry">
-                <span style="font-weight:700; color:var(--lp-text-primary);">${sym}</span>
-                <span>$${Number(pUSD).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: (pUSD < 1 ? 4 : 2)})}</span>
-                <span style="color:${gross > 0.35 ? 'var(--lp-green)' : 'var(--lp-marigold-bright)'}; font-weight:600;">Spread ${Number(gross).toFixed(3)}%</span>
-                <span style="color:var(--lp-text-faint);">&bull;</span>
-                <span>₹${Math.round(pINR).toLocaleString('en-IN')}</span>
-                <span style="color:var(--lp-marigold-bright); font-weight:600;">+${Number(prem).toFixed(2)}% Prem</span>
+            <div class="ticker-leaf">
+                <span class="leaf-sym">${sym}</span>
+                <span style="font-weight:600;">$${Number(pUSD).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: (pUSD < 1 ? 4 : 2)})}</span>
+                <span class="leaf-rate">Spread ${Number(gross).toFixed(3)}%</span>
+                <span style="color:rgba(58,15,52,0.2);">&bull;</span>
+                <span style="font-weight:600;">₹${Math.round(pINR).toLocaleString('en-IN')}</span>
+                <span style="color:var(--c-marigold-deep); font-weight:700;">+${Number(prem).toFixed(2)}% Prem</span>
             </div>
         `;
     }).join('');
@@ -196,7 +196,7 @@ function renderMarqueeTape() {
 // =============================================================================
 function selectAsset(sym) {
     currentAsset = sym;
-    const btns = document.querySelectorAll('.calc-asset-btn');
+    const btns = document.querySelectorAll('.asset-pill-select, .calc-asset-btn');
     btns.forEach(b => b.classList.toggle('active', b.getAttribute('data-sym') === sym));
     computeQuantitativeSandbox();
 }
@@ -238,22 +238,22 @@ function computeQuantitativeSandbox() {
     if (elHurdle) elHurdle.textContent = `-$${hurdleUSD.toFixed(2)} (35 bps)`;
     if (elNet) {
         elNet.textContent = `${netUSD >= 0 ? '+' : '-'}$${Math.abs(netUSD).toFixed(2)} (${netPct.toFixed(3)}%)`;
-        elNet.style.color = netUSD >= 0 ? 'var(--lp-green)' : 'var(--lp-red)';
+        elNet.style.color = netUSD >= 0 ? 'var(--c-green)' : 'var(--c-red)';
     }
-    if (elTds) elTds.textContent = `₹${Math.round(tdsINR).toLocaleString('en-IN')} (Section 194S)`;
+    if (elTds) elTds.textContent = `₹${Math.round(tdsINR).toLocaleString('en-IN')} (Sec 194S)`;
     if (elPrem) elPrem.textContent = `+₹${Math.round(premINR).toLocaleString('en-IN')} (+${premPct.toFixed(2)}%)`;
 
     if (elVerdict) {
         if (netPct > 0) {
             elVerdict.innerHTML = `
-                <div style="padding:10px 14px; background:rgba(16, 185, 129, 0.12); border:1px solid rgba(16, 185, 129, 0.3); border-radius:6px; color:var(--lp-green); font-size:0.8rem; font-family:var(--lp-font-mono);">
-                    <strong>STATUS: ARBITRAGE_VIABLE</strong> &bull; Spread exceeds round-trip fee hurdle (+${netPct.toFixed(3)}% post-taker fees).
+                <div style="padding:12px 14px; background:var(--c-green-light); border:1px solid rgba(5,150,105,0.3); border-radius:8px; color:var(--c-green); font-size:0.8rem; font-family:var(--font-mono);">
+                    <strong>STATUS: ARBITRAGE_VIABLE</strong> &bull; Gross spread exceeds 35 bps fee hurdle (+${netPct.toFixed(3)}% net alpha).
                 </div>
             `;
         } else {
             elVerdict.innerHTML = `
-                <div style="padding:10px 14px; background:var(--lp-marigold-subtle); border:1px solid var(--lp-marigold-border); border-radius:6px; color:var(--lp-marigold-bright); font-size:0.8rem; font-family:var(--lp-font-mono);">
-                    <strong>STATUS: ORDER_SUPPRESSED</strong> &bull; Inside 35 bps hurdle (${grossPct.toFixed(3)}% &lt; 0.35%). HFT execution suppressed to protect capital.
+                <div style="padding:12px 14px; background:var(--c-marigold-light); border:1px solid rgba(234,170,0,0.3); border-radius:8px; color:var(--c-marigold-deep); font-size:0.8rem; font-family:var(--font-mono);">
+                    <strong>STATUS: ORDER_SUPPRESSED</strong> &bull; Inside 35 bps hurdle (${grossPct.toFixed(3)}% &lt; 0.35%). Execution suppressed to prevent fee decay.
                 </div>
             `;
         }
