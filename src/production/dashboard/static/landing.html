@@ -3,313 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoPulse - High-Frequency Crypto Analytics &amp; Cross-Market Spread Detection</title>
-    <meta name="description" content="Institutional streaming pipeline with Apache Kafka, Spark Structured Streaming, and ClickHouse OLAP. Real-time arbitrage detection and India regulatory premium tracking.">
+    <title>CryptoPulse &bull; High-Frequency Crypto Analytics &amp; Cross-Market Spread Engine</title>
+    <meta name="description" content="Institutional streaming pipeline with Apache Kafka KRaft, Spark Structured Streaming, and ClickHouse OLAP. Real-time multi-exchange arbitrage and India regulatory premium tracking.">
     
     <!-- Google Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="/static/css/landing.css?v=2.3">
+    <link rel="stylesheet" href="/static/css/landing.css?v=3.2">
     
-    <!-- JavaScript Controller -->
-    <script src="/static/js/landing.js?v=2.3" defer></script>
+    <!-- Quantitative Engine Controller -->
+    <script src="/static/js/landing.js?v=3.2" defer></script>
 </head>
-<body class="landing-body light-theme">
+<body class="landing-page-body dark-theme">
+
+    <!-- Ambient Visual Grid & Spotlight -->
+    <div class="ambient-dot-grid" aria-hidden="true"></div>
+    <div class="ambient-spotlight" aria-hidden="true"></div>
 
     <!-- ========================================================================= -->
-    <!-- 1. STICKY INSTITUTIONAL HEADER & NAVIGATION                               -->
+    <!-- 1. STICKY INSTITUTIONAL COMMAND HEADER                                    -->
     <!-- ========================================================================= -->
-    <header class="site-header">
-        <div class="nav-container">
-            <!-- Brand Logo -->
-            <a href="/" class="brand-wrapper">
-                <div class="brand-logo-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <header class="header-glass">
+        <div class="header-container">
+            <!-- Brand Mark -->
+            <a href="/" class="brand-anchor">
+                <div class="brand-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="12 2 19 8.5 19 15.5 12 22 5 15.5 5 8.5 12 2"></polygon>
                         <circle cx="12" cy="12" r="2.5"></circle>
                         <line x1="12" y1="2" x2="12" y2="9.5"></line>
                         <line x1="19" y1="8.5" x2="13.5" y2="12"></line>
                         <line x1="19" y1="15.5" x2="13.5" y2="12"></line>
                         <line x1="12" y1="22" x2="12" y2="14.5"></line>
-                        <line x1="5" y1="15.5" x2="10.5" y2="12"></line>
-                        <line x1="5" y1="8.5" x2="10.5" y2="12"></line>
                     </svg>
                 </div>
-                <div class="brand-title-group">
-                    <span class="brand-name">CryptoPulse</span>
-                    <span class="brand-badge">Institutional Stream Engine</span>
+                <div class="brand-title-wrap">
+                    <span class="brand-wordmark">CryptoPulse</span>
+                    <span class="brand-tagline">Quantitative Stream Core</span>
                 </div>
             </a>
 
             <!-- Nav Links -->
             <nav>
-                <ul class="nav-menu">
-                    <li><a href="#features" class="nav-link-item">Capabilities</a></li>
-                    <li><a href="#arbitrage" class="nav-link-item">Cross-Exchange Radar</a></li>
-                    <li><a href="#india-premium" class="nav-link-item">India Premium</a></li>
-                    <li><a href="#pipeline" class="nav-link-item">Architecture</a></li>
-                    <li><a href="#calculator" class="nav-link-item">Spread Calculator</a></li>
-                    <li><a href="#benchmarks" class="nav-link-item">Benchmarks</a></li>
+                <ul class="nav-links-row">
+                    <li><a href="#showcase" class="nav-link-btn">Spread Radar</a></li>
+                    <li><a href="#pillars" class="nav-link-btn">Architecture Pillars</a></li>
+                    <li><a href="#pipeline-sim" class="nav-link-btn">Packet Tracer</a></li>
+                    <li><a href="#sandbox" class="nav-link-btn">Hurdle Sandbox</a></li>
+                    <li><a href="#viva-defense" class="nav-link-btn">Engineering Specs</a></li>
                 </ul>
             </nav>
 
             <!-- Actions -->
-            <div class="nav-actions">
-                <div class="nav-status-pill">
-                    <span class="status-dot-pulse"></span>
-                    <span>1,240 msg/s Active</span>
+            <div class="header-actions">
+                <div class="engine-telemetry-pill">
+                    <span class="pulsing-status-dot"></span>
+                    <span id="ribbonThroughputVal">1,240 msg/s</span>
+                    <span style="color:var(--lp-text-muted);">|</span>
+                    <span id="ribbonLatencyVal" style="color:var(--lp-marigold-bright);">&lt; 42 ms</span>
                 </div>
 
-                <!-- Theme Toggle Button -->
-                <button class="btn-theme-round" onclick="toggleTheme()" title="Toggle Light / Dark Theme" aria-label="Toggle Theme">
-                    <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"></circle>
-                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                    </svg>
-                    <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
+                <!-- Theme Switcher -->
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Theme [Press D]" aria-label="Toggle Theme">
+                    <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                 </button>
 
-                <!-- Launch Terminal CTA -->
-                <a href="/app" class="btn-launch-terminal">
+                <!-- Launch Terminal -->
+                <a href="/app" class="terminal-launch-btn">
                     <span>Launch Terminal</span>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
+                    <span style="font-size:0.75rem; font-family:var(--lp-font-mono); opacity:0.85;">[T]</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </a>
             </div>
         </div>
     </header>
 
     <!-- ========================================================================= -->
-    <!-- 2. HIGH-IMPACT HERO SECTION                                               -->
+    <!-- 2. HIGH-DENSITY HERO SECTION                                              -->
     <!-- ========================================================================= -->
-    <section class="hero-wrapper">
-        <div class="hero-mesh-background" aria-hidden="true"></div>
-        <div class="hero-inner">
-            <!-- Hero Pill -->
-            <div class="hero-live-pill">
-                <span class="status-dot-pulse"></span>
-                <span>Real-Time Multi-Venue Streaming &bull; Event-Time Join Engine</span>
+    <section class="hero-container">
+        <!-- Engine Telemetry Ribbon -->
+        <div class="hero-meta-strip">
+            <span>[KAFKA: KRAFT-PROD]</span>
+            <span style="opacity:0.4;">&bull;</span>
+            <span>[SPARK-3.5: 3s-MICROBATCH]</span>
+            <span style="opacity:0.4;">&bull;</span>
+            <span>[CLICKHOUSE: ZSTD-SIMD]</span>
+            <span style="opacity:0.4;">&bull;</span>
+            <span style="color:var(--lp-green);">ZERO PACKET DROP</span>
+        </div>
+
+        <!-- Heavy Metallic Ice Silver & Radiant Marigold Title -->
+        <h1 class="hero-headline">
+            <span class="headline-silver">Real-Time Multi-Venue Streaming &amp;</span><br>
+            <span class="headline-marigold">Cross-Market Spread Engine</span>
+        </h1>
+
+        <!-- Technical Lead -->
+        <p class="hero-subhead">
+            Continuous event-time stream joins across Coinbase, Kraken, and CoinDCX. 
+            Engineered with Apache Kafka, Spark Structured Streaming, and ClickHouse OLAP 
+            to benchmark sub-millisecond clock skew, 35 bps fee hurdles, and statutory capital controls.
+        </p>
+
+        <!-- CTA Row -->
+        <div class="hero-cta-group">
+            <a href="/app" class="hero-primary-btn">
+                <span>Launch Trading Terminal</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </a>
+            <a href="#pipeline-sim" class="hero-secondary-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <span>Inspect Pipeline Tracer</span>
+            </a>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- 3. HERO LIVING TERMINAL PREVIEW - THE CENTERPIECE                     -->
+        <!-- ===================================================================== -->
+        <div class="hero-terminal-showcase" id="showcase">
+            <div class="terminal-titlebar">
+                <div class="terminal-traffic-lights">
+                    <span class="traffic-light light-red"></span>
+                    <span class="traffic-light light-yellow"></span>
+                    <span class="traffic-light light-green"></span>
+                </div>
+                <div class="terminal-nav-pills">
+                    <button class="terminal-nav-pill-btn active" data-tab="radar" onclick="switchShowcaseTab('radar')">Cross-Exchange Radar (Coinbase vs Kraken)</button>
+                    <button class="terminal-nav-pill-btn" data-tab="india" onclick="switchShowcaseTab('india')">India Regulatory Surcharge (CoinDCX vs ECB)</button>
+                    <button class="terminal-nav-pill-btn" data-tab="imbalance" onclick="switchShowcaseTab('imbalance')">Lee-Ready (1991) Order Flow</button>
+                </div>
+                <a href="/app" class="terminal-center-title" style="text-decoration:none; color:var(--lp-cyan); font-weight:600;">
+                    Fullscreen Terminal &rarr;
+                </a>
             </div>
 
-            <!-- Headline -->
-            <h1 class="hero-title-main">
-                Real-Time Crypto Intelligence &amp; <br>
-                <span class="hero-title-gradient">Cross-Market Spread Detection</span>
-            </h1>
+            <div class="terminal-content-grid">
+                <!-- Left Main Live Feed -->
+                <div class="terminal-left-pane">
+                    <!-- Tab 1: Cross-Exchange Radar -->
+                    <div id="showcaseRadarPane">
+                        <div class="pane-section-header">
+                            <span class="pane-title">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+                                Live Event-Time Spread Radar
+                            </span>
+                            <span style="font-family:var(--lp-font-mono); font-size:0.72rem; color:var(--lp-text-muted);">
+                                Round-Trip Fee Hurdle: <strong style="color:var(--lp-amber);">0.35% (35 bps)</strong>
+                            </span>
+                        </div>
+                        <table class="quant-table">
+                            <thead>
+                                <tr>
+                                    <th>Pair</th>
+                                    <th>Coinbase USD</th>
+                                    <th>Kraken USD</th>
+                                    <th>Gross Spread</th>
+                                    <th>Clock Skew</th>
+                                    <th>Alpha Execution</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quantRadarTableBody">
+                                <!-- Populated dynamically via landing.js -->
+                            </tbody>
+                        </table>
+                    </div>
 
-            <!-- Subtitle -->
-            <p class="hero-lead-text">
-                Engineered with Apache Kafka, Spark Structured Streaming, and ClickHouse OLAP. 
-                Perform millisecond event-time joins between Coinbase, Kraken, and CoinDCX with automated 
-                regulatory hurdle analysis and dual-currency ECB settlement.
-            </p>
+                    <!-- Tab 2: India Regulatory Surcharge -->
+                    <div id="showcaseIndiaPane" style="display:none;">
+                        <div class="pane-section-header">
+                            <span class="pane-title">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                Domestic CoinDCX INR vs. ECB Fair Value Conversion (USD/INR = ₹88.19)
+                            </span>
+                            <span style="font-family:var(--lp-font-mono); font-size:0.72rem; color:var(--lp-red);">
+                                Section 194S (1% TDS) &bull; LRS Capped
+                            </span>
+                        </div>
+                        <table class="quant-table">
+                            <thead>
+                                <tr>
+                                    <th>Pair</th>
+                                    <th>CoinDCX INR</th>
+                                    <th>Global Fair Value</th>
+                                    <th>Gross Premium</th>
+                                    <th>Regulatory Regime</th>
+                                </tr>
+                            </thead>
+                            <tbody id="indiaMoatTableBody">
+                                <!-- Populated dynamically via landing.js -->
+                            </tbody>
+                        </table>
+                    </div>
 
-            <!-- CTA Buttons -->
-            <div class="hero-cta-row">
-                <a href="/app" class="btn-cta-primary">
-                    <span>Launch Trading Terminal</span>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                </a>
-                <a href="#pipeline" class="btn-cta-secondary">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                        <polyline points="2 17 12 22 22 17"></polyline>
-                        <polyline points="2 12 12 17 22 12"></polyline>
-                    </svg>
-                    <span>Explore Architecture</span>
-                </a>
+                    <!-- Tab 3: Order Flow Imbalance -->
+                    <div id="showcaseImbalancePane" style="display:none;">
+                        <div class="pane-section-header">
+                            <span class="pane-title">Lee-Ready (1991) Trade Classification &bull; Rolling 100-Tick Imbalance</span>
+                        </div>
+                        <div style="padding: 20px 10px; font-family:var(--lp-font-mono);">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.8rem;">
+                                <span>Institutional Buyer Volume: <strong style="color:var(--lp-green);">56.8%</strong></span>
+                                <span>Seller Volume: <strong style="color:var(--lp-red);">43.2%</strong></span>
+                            </div>
+                            <div style="width:100%; height:10px; background:rgba(239,68,68,0.25); border-radius:5px; overflow:hidden; display:flex;">
+                                <div style="width:56.8%; background:var(--lp-green);"></div>
+                                <div style="width:43.2%; background:var(--lp-red);"></div>
+                            </div>
+                            <div style="margin-top:16px; font-size:0.78rem; color:var(--lp-text-secondary); line-height:1.5;">
+                                Trade initiator direction classified via tick test: if $P_t > P_{t-1}$, buyer initiated (+V); if $P_t < P_{t-1}$, seller initiated (-V).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Analytical HUD -->
+                <div class="terminal-right-pane">
+                    <div class="pane-section-header">
+                        <span class="pane-title">Quantitative Diagnostics</span>
+                        <span class="pulsing-status-dot"></span>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:16px; font-family:var(--lp-font-mono);">
+                        <div style="background:var(--lp-bg-card-solid); border:1px solid var(--lp-border); border-radius:6px; padding:12px;">
+                            <div style="font-size:0.7rem; text-transform:uppercase; color:var(--lp-text-muted);">Empirical Market Efficiency</div>
+                            <div style="font-size:1.4rem; font-weight:800; color:var(--lp-cyan);" id="engineEfficiencyMetric">99.7%</div>
+                            <div style="font-size:0.72rem; color:var(--lp-text-secondary);">Spreads > 35 bps close in ~1.4s post-fees</div>
+                        </div>
+
+                        <div style="background:var(--lp-bg-card-solid); border:1px solid var(--lp-border); border-radius:6px; padding:12px;">
+                            <div style="font-size:0.7rem; text-transform:uppercase; color:var(--lp-text-muted);">Event-Time Clock Skew (&Delta;t)</div>
+                            <div style="font-size:1.1rem; font-weight:700; color:var(--lp-text-primary);">&Delta;t = 84 ms</div>
+                            <div style="font-size:0.72rem; color:var(--lp-text-secondary);">Coinbase London &bull; Kraken Frankfurt</div>
+                        </div>
+
+                        <div style="background:var(--lp-bg-card-solid); border:1px solid var(--lp-border); border-radius:6px; padding:12px;">
+                            <div style="font-size:0.7rem; text-transform:uppercase; color:var(--lp-text-muted);">Active Settlement Route</div>
+                            <div style="font-size:0.85rem; font-weight:700; color:var(--lp-green);">Buy Coinbase &rarr; Sell Kraken</div>
+                            <div style="font-size:0.72rem; color:var(--lp-text-secondary);">Negative alpha post 0.35% round-trip</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- 4 Key Performance Stats Grid -->
-            <div class="hero-stats-grid">
-                <div class="hero-stat-card">
-                    <div class="stat-card-label">
-                        <span>Ingestion Velocity</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                    </div>
-                    <div class="stat-card-value" id="heroStatThroughput">1,240 msg/s</div>
-                    <div class="stat-card-subtext">Kafka KRaft distributed commit log</div>
-                </div>
-
-                <div class="hero-stat-card">
-                    <div class="stat-card-label">
-                        <span>P99 Query Latency</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </div>
-                    <div class="stat-card-value" id="heroStatLatency">&lt; 85 ms</div>
-                    <div class="stat-card-subtext">FastAPI async SSE &amp; ClickHouse SIMD</div>
-                </div>
-
-                <div class="hero-stat-card">
-                    <div class="stat-card-label">
-                        <span>Market Efficiency</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    </div>
-                    <div class="stat-card-value" id="heroStatEfficiency">99.7%</div>
-                    <div class="stat-card-subtext">Opportunities close in ~1.4s post-fees</div>
-                </div>
-
-                <div class="hero-stat-card">
-                    <div class="stat-card-label">
-                        <span>Settlement Venues</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"></rect></svg>
-                    </div>
-                    <div class="stat-card-value">3 Venues</div>
-                    <div class="stat-card-subtext">Coinbase USD &bull; Kraken &bull; CoinDCX INR</div>
-                </div>
+            <!-- Terminal Bottom Strip -->
+            <div class="terminal-bottom-strip">
+                <div>STREAM_ID: kraken_ws_v2_cb_stream &bull; BUFFER: 0_DROPPED &bull; COMPACTION: ZSTD_LEVEL_3</div>
+                <div>PRESS <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">T</kbd> FOR LIVE BLOTTER</div>
             </div>
         </div>
     </section>
 
     <!-- ========================================================================= -->
-    <!-- 3. LIVE STREAMING TICKER MARQUEE                                          -->
+    <!-- 4. CONTINUOUS MARQUEE TICKER TAPE                                         -->
     <!-- ========================================================================= -->
-    <div class="marquee-bar">
-        <div class="marquee-track" id="marqueeTrack">
-            <!-- Populated dynamically via landing.js -->
-            <div class="marquee-item"><span class="marquee-sym">BTC</span> <span class="marquee-val">$80,197.30</span> <span class="marquee-badge arb">Spread 0.003%</span> <span class="marquee-val">₹81,06,712</span> <span class="marquee-badge positive">+14.6% Prem</span></div>
-            <div class="marquee-item"><span class="marquee-sym">ETH</span> <span class="marquee-val">$2,322.06</span> <span class="marquee-badge arb">Spread 0.031%</span> <span class="marquee-val">₹2,35,023</span> <span class="marquee-badge positive">+14.8% Prem</span></div>
-            <div class="marquee-item"><span class="marquee-sym">SOL</span> <span class="marquee-val">$101.42</span> <span class="marquee-badge arb">Spread 0.030%</span> <span class="marquee-val">₹10,254</span> <span class="marquee-badge positive">+14.6% Prem</span></div>
-            <div class="marquee-item"><span class="marquee-sym">XRP</span> <span class="marquee-val">$1.3005</span> <span class="marquee-badge positive">Spread 0.406%</span> <span class="marquee-val">₹130.80</span> <span class="marquee-badge positive">+14.1% Prem</span></div>
+    <div class="ticker-ribbon">
+        <div class="ticker-flow" id="liveMarqueeTrack">
+            <!-- Dynamically populated via landing.js -->
         </div>
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 4. INTERACTIVE TERMINAL PREVIEW (SHOWCASE)                                -->
+    <!-- 5. BENTO GRID - THE 4 TECHNICAL PILLARS                                   -->
     <!-- ========================================================================= -->
-    <section class="terminal-preview-section" id="arbitrage">
-        <div class="terminal-frame">
-            <!-- Terminal Header -->
-            <div class="terminal-header-bar">
-                <div class="terminal-dots">
-                    <span class="mac-dot dot-red"></span>
-                    <span class="mac-dot dot-yellow"></span>
-                    <span class="mac-dot dot-green"></span>
+    <section class="bento-section" id="pillars">
+        <div class="section-tag">Mathematical Rigor &bull; Architectural Depth</div>
+        <h2 class="section-heading-lg">Four Engineering Pillars Setting CryptoPulse Apart</h2>
+        <p class="section-summary-text">
+            Standard portfolio projects simply insert single-source tutorials into MongoDB. 
+            CryptoPulse formulates real quantitative and regulatory stream problems with empirical validation.
+        </p>
+
+        <div class="bento-grid-layout">
+            <!-- Pillar 1 -->
+            <div class="bento-card">
+                <div class="bento-icon-badge">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
                 </div>
-                <div class="terminal-tabs">
-                    <button class="terminal-tab-btn active" data-tab="arb" onclick="switchTerminalTab('arb')">Cross-Exchange Radar</button>
-                    <button class="terminal-tab-btn" data-tab="india" onclick="switchTerminalTab('india')">India Regulatory Premium</button>
-                    <button class="terminal-tab-btn" data-tab="pipeline" onclick="switchTerminalTab('pipeline')">Pipeline Health</button>
+                <h3 class="bento-title">Multi-Venue Clock Skew &amp; Arbitrage</h3>
+                <p class="bento-desc">
+                    Joins independent WebSocket clocks (Coinbase &amp; Kraken) in event-time. Calculates exact clock skew $\Delta t = |t_{\text{Coinbase}} - t_{\text{Kraken}}|$ and tests gross spreads against a realistic 0.35% maker/taker fee hurdle.
+                </p>
+                <div style="font-family:var(--lp-font-mono); font-size:0.75rem; color:var(--lp-cyan); border-top:1px solid var(--lp-border); padding-top:12px;">
+                    EMPIRICAL PERSISTENCE: ~1.4 SECONDS
                 </div>
-                <a href="/app" class="terminal-title-text" style="text-decoration:none;">Open Full Terminal &rarr;</a>
             </div>
 
-            <!-- Terminal Body -->
-            <div class="terminal-body">
-                <!-- Tab 1: Cross-Exchange Arbitrage (Coinbase vs Kraken) -->
-                <div id="previewTabArbitrage" class="preview-split-grid">
-                    <!-- Table Side -->
-                    <div class="preview-radar-box">
-                        <div class="box-header-row">
-                            <span class="box-title">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                Live Cross-Market Spread Radar
-                            </span>
-                            <span class="badge-status-pill amber" style="font-size:0.7rem;">0.35% Fee Hurdle</span>
-                        </div>
-                        <table class="mini-preview-table">
-                            <thead>
-                                <tr>
-                                    <th>Asset Pair</th>
-                                    <th>Coinbase USD</th>
-                                    <th>Kraken USD</th>
-                                    <th>Gross Spread</th>
-                                    <th>Execution State</th>
-                                </tr>
-                            </thead>
-                            <tbody id="previewArbTableBody">
-                                <!-- Populated via landing.js -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Explanatory Side -->
-                    <div class="preview-india-box" style="display:flex; flex-direction:column; justify-content:space-between;">
-                        <div>
-                            <div class="box-header-row">
-                                <span class="box-title">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                    Empirical Market Efficiency
-                                </span>
-                            </div>
-                            <p style="font-size:0.86rem; color:var(--text-secondary); line-height:1.6; margin-bottom:16px;">
-                                Gross cross-venue spreads between Coinbase and Kraken fluctuate within <strong>0.002% to 0.40%</strong> during standard volatility. 
-                                After accounting for our realistic <strong>0.35% round-trip fee hurdle</strong> (0.15% maker + 0.20% taker), opportunities appear rarely and close within <strong>~1.4 seconds</strong>.
-                            </p>
-                        </div>
-                        <div style="padding:14px; background:var(--bg-card); border:1px solid var(--border-card); border-radius:8px;">
-                            <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">Event-Time Clock Skew (&Delta;t)</div>
-                            <div style="font-size:1.1rem; font-family:var(--font-mono); font-weight:800; color:var(--text-primary);">&Delta;t = 84 ms &bull; Zero Drift</div>
-                        </div>
-                    </div>
+            <!-- Pillar 2 -->
+            <div class="bento-card">
+                <div class="bento-icon-badge" style="color:var(--lp-amber); background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.2);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                 </div>
-
-                <!-- Tab 2: India Regulatory Premium -->
-                <div id="previewTabIndia" style="display:none;">
-                    <div class="preview-radar-box">
-                        <div class="box-header-row">
-                            <span class="box-title">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                Domestic CoinDCX INR vs. European Central Bank (ECB) Reference Rate
-                            </span>
-                            <span class="badge-status-pill opportunity" style="font-size:0.7rem;">Live Capital Control Lock</span>
-                        </div>
-                        <table class="mini-preview-table">
-                            <thead>
-                                <tr>
-                                    <th>Asset Pair</th>
-                                    <th>CoinDCX Price (INR)</th>
-                                    <th>Gross Premium %</th>
-                                    <th>Statutory Regime</th>
-                                </tr>
-                            </thead>
-                            <tbody id="previewIndiaTableBody">
-                                <!-- Populated via landing.js -->
-                            </tbody>
-                        </table>
-                    </div>
+                <h3 class="bento-title">India Regulatory &amp; Liquidity Moat</h3>
+                <p class="bento-desc">
+                    Quantifies the domestic +12% to +16% INR premium on CoinDCX over European Central Bank (ECB) fair value. Explains why cross-border arbitrage cannot extract this spread due to Section 194S (1% TDS) and RBI $250k LRS capital control caps.
+                </p>
+                <div style="font-family:var(--lp-font-mono); font-size:0.75rem; color:var(--lp-amber); border-top:1px solid var(--lp-border); padding-top:12px;">
+                    STATUTORY TAX: 1% TDS LOCK PROTOCOL
                 </div>
+            </div>
 
-                <!-- Tab 3: Pipeline Health -->
-                <div id="previewTabPipeline" style="display:none;">
-                    <div class="hero-stats-grid" style="max-width:100%; margin:0;">
-                        <div class="hero-stat-card">
-                            <div class="stat-card-label">Kafka Cluster</div>
-                            <div class="stat-card-value" style="color:var(--color-green);">KRaft Active</div>
-                            <div class="stat-card-subtext">3 partitions, replication factor 1</div>
-                        </div>
-                        <div class="hero-stat-card">
-                            <div class="stat-card-label">Spark Streaming</div>
-                            <div class="stat-card-value" style="color:var(--brand-accent);">3.0s Batches</div>
-                            <div class="stat-card-subtext">10s &amp; 1m tumbling stateful windows</div>
-                        </div>
-                        <div class="hero-stat-card">
-                            <div class="stat-card-label">ClickHouse OLAP</div>
-                            <div class="stat-card-value" style="color:var(--color-green);">ZSTD Packed</div>
-                            <div class="stat-card-subtext">3.8x columnar compression ratio</div>
-                        </div>
-                        <div class="hero-stat-card">
-                            <div class="stat-card-label">Anomaly Detector</div>
-                            <div class="stat-card-value" style="color:var(--color-amber);">|Z| &ge; 3.0&sigma;</div>
-                            <div class="stat-card-subtext">Rolling Gaussian volatility scans</div>
-                        </div>
+            <!-- Pillar 3 -->
+            <div class="bento-card">
+                <div class="bento-icon-badge" style="color:var(--lp-green); background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.2);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                </div>
+                <h3 class="bento-title">Lee-Ready (1991) Microstructure</h3>
+                <p class="bento-desc">
+                    Classifies whether trade ticks execute at bid or ask without requiring Level-2 order books. Computes rolling Order Flow Imbalance (OFI) over 100-tick sliding windows to measure institutional buy/sell pressure.
+                </p>
+                <div style="font-family:var(--lp-font-mono); font-size:0.75rem; color:var(--lp-green); border-top:1px solid var(--lp-border); padding-top:12px;">
+                    ALGORITHM: LEE-READY TICK TEST
+                </div>
+            </div>
+
+            <!-- Pillar 4: Anomaly Detection (Span 3) -->
+            <div class="bento-card span-3" style="display:grid; grid-template-columns: 1.5fr 1fr; gap:24px; align-items:center;">
+                <div>
+                    <div class="bento-icon-badge" style="color:var(--lp-purple); background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.2);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <h3 class="bento-title">Rolling 3.0&sigma; Gaussian Anomaly Detection</h3>
+                    <p class="bento-desc">
+                        Asset prices follow non-stationary random walks; computing standard deviation on raw prices produces drifting statistical errors. CryptoPulse calculates Gaussian Z-scores on price returns $R_t = \frac{P_t - P_{t-1}}{P_{t-1}}$ over rolling 30-period sliding deques, filtering true volatility spikes with zero lookahead bias.
+                    </p>
+                </div>
+                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--lp-border); border-radius:8px; padding:18px; font-family:var(--lp-font-mono); font-size:0.8rem;">
+                    <div style="color:var(--lp-text-muted); margin-bottom:8px;">MATHEMATICAL FORMULATION</div>
+                    <div style="color:var(--lp-cyan); font-weight:700; margin-bottom:12px;">Z = (R_t - &mu;) / &sigma; &bull; |Z| &ge; 3.0&sigma;</div>
+                    <div style="color:var(--lp-text-secondary); font-size:0.75rem; line-height:1.5;">
+                        Strict Temporal Guarantee: Current return $R_t$ is scored strictly against historical buffer prior to window mutation.
                     </div>
                 </div>
             </div>
@@ -317,201 +344,127 @@
     </section>
 
     <!-- ========================================================================= -->
-    <!-- 5. CORE CAPABILITIES / VALUE PILLARS                                      -->
+    <!-- 6. INTERACTIVE PIPELINE PACKET TRACER (GAME CHANGER)                      -->
     <!-- ========================================================================= -->
-    <section class="section-container" id="features">
-        <div class="section-head">
-            <div class="section-eyebrow">Enterprise Features</div>
-            <h2 class="section-title">Built for Quantitative Accuracy &amp; Regulatory Realism</h2>
-            <p class="section-desc">
-                Most tutorials stop at simple single-source Kafka pipelines. CryptoPulse tackles real-world distributed stream joins, fee hurdles, and macro currency friction.
-            </p>
-        </div>
+    <section class="bento-section" id="pipeline-sim">
+        <div class="section-tag">Interactive Event-Time Tracer</div>
+        <h2 class="section-heading-lg">End-to-End Streaming Architecture</h2>
+        <p class="section-summary-text">
+            Click to inject a synthetic live trade packet and observe it traverse each hop from exchange WebSocket to your browser with microsecond timestamps.
+        </p>
 
-        <div class="benchmarks-grid">
-            <div class="benchmark-card">
-                <div class="step-icon-box" style="background:rgba(37, 99, 235, 0.12); color:#2563EB;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+        <div class="simulator-box">
+            <div class="sim-track-nodes">
+                <!-- Hop 1 -->
+                <div class="sim-node" id="simNode1">
+                    <div class="sim-node-num">HOP 01</div>
+                    <div class="sim-node-title">Coinbase / Kraken WS</div>
+                    <div class="sim-node-latency">t0: Public WebSocket</div>
                 </div>
-                <h3 class="benchmark-title">Cross-Exchange Event-Time Join</h3>
-                <p class="benchmark-desc">
-                    Simultaneously consumes Coinbase Pro and Kraken WebSocket v2 streams with distinct venue clocks, synchronizing events by millisecond timestamps and calculating real-time clock skew.
-                </p>
+
+                <!-- Hop 2 -->
+                <div class="sim-node" id="simNode2">
+                    <div class="sim-node-num">HOP 02</div>
+                    <div class="sim-node-title">Kafka KRaft Broker</div>
+                    <div class="sim-node-latency">t1: Part-2 Off: 492104</div>
+                </div>
+
+                <!-- Hop 3 -->
+                <div class="sim-node" id="simNode3">
+                    <div class="sim-node-num">HOP 03</div>
+                    <div class="sim-node-title">Spark 3.5 Microbatch</div>
+                    <div class="sim-node-latency">t2: 3s Window + Watermark</div>
+                </div>
+
+                <!-- Hop 4 -->
+                <div class="sim-node" id="simNode4">
+                    <div class="sim-node-num">HOP 04</div>
+                    <div class="sim-node-title">ClickHouse OLAP</div>
+                    <div class="sim-node-latency">t3: Columnar ZSTD Flush</div>
+                </div>
+
+                <!-- Hop 5 -->
+                <div class="sim-node" id="simNode5">
+                    <div class="sim-node-num">HOP 05</div>
+                    <div class="sim-node-title">FastAPI SSE Serving</div>
+                    <div class="sim-node-latency">t4: Keyset Cursor Broadcast</div>
+                </div>
             </div>
 
-            <div class="benchmark-card">
-                <div class="step-icon-box" style="background:rgba(245, 158, 11, 0.12); color:#F59E0B;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <div class="sim-controls-bar">
+                <button class="sim-fire-btn" id="simFireBtn" onclick="triggerPipelineSimulation()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    <span>⚡ Inject Live Test Tick</span>
+                </button>
+                <div class="sim-log-output" id="simLogOutput">
+                    Click 'Inject Live Test Tick' to trace an event packet through all 5 architectural tiers.
                 </div>
-                <h3 class="benchmark-title">India Regulatory Premium Tracker</h3>
-                <p class="benchmark-desc">
-                    Quantifies the structural +12% to +16% price divergence between CoinDCX INR and global ECB implied values created by Section 194S (1% TDS) and RBI $250k LRS limits.
-                </p>
-            </div>
-
-            <div class="benchmark-card">
-                <div class="step-icon-box" style="background:rgba(16, 185, 129, 0.12); color:#10B981;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-                </div>
-                <h3 class="benchmark-title">Rolling Volatility Anomaly Detection</h3>
-                <p class="benchmark-desc">
-                    Evaluates continuous 30-period rolling Gaussian Z-scores (|Z| &ge; 3.0&sigma;) on price returns to detect sudden flash pumps, dumps, and volume breakouts in event-time.
-                </p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ========================================================================= -->
-    <!-- 6. END-TO-END STREAMING ARCHITECTURE PIPELINE                             -->
-    <!-- ========================================================================= -->
-    <section class="section-container" id="pipeline">
-        <div class="section-head">
-            <div class="section-eyebrow">Distributed Architecture</div>
-            <h2 class="section-title">The High-Throughput Streaming Engine</h2>
-            <p class="section-desc">
-                From public exchange WebSockets through distributed queues and vectorized OLAP storage into the browser terminal.
-            </p>
-        </div>
-
-        <div class="pipeline-flow-grid">
-            <!-- Step 1 -->
-            <div class="pipeline-step-card">
-                <div class="step-number">1</div>
-                <div class="step-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                </div>
-                <h4 class="step-title">Multi-Venue Ingestion</h4>
-                <div class="step-tech-tag">WebSockets &bull; REST API</div>
-                <p class="step-details">
-                    Ingests live tick-by-tick order feeds from Coinbase Pro, Kraken WS v2, CoinDCX, and daily ECB reference FX rates.
-                </p>
-            </div>
-
-            <!-- Step 2 -->
-            <div class="pipeline-step-card">
-                <div class="step-number">2</div>
-                <div class="step-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-                </div>
-                <h4 class="step-title">Message Broker</h4>
-                <div class="step-tech-tag">Apache Kafka 3.7 KRaft</div>
-                <p class="step-details">
-                    ZooKeeper-free Raft consensus log. Buffers high-throughput bursts up to 5,000 msgs/s with zero packet loss.
-                </p>
-            </div>
-
-            <!-- Step 3 -->
-            <div class="pipeline-step-card">
-                <div class="step-number">3</div>
-                <div class="step-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                </div>
-                <h4 class="step-title">Stream Engine</h4>
-                <div class="step-tech-tag">Apache Spark 3.5.0</div>
-                <p class="step-details">
-                    Distributed 3-second micro-batches. Computes 10s and 1m tumbling windows, dual-currency VWAP, and watermarking.
-                </p>
-            </div>
-
-            <!-- Step 4 -->
-            <div class="pipeline-step-card">
-                <div class="step-number">4</div>
-                <div class="step-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-                </div>
-                <h4 class="step-title">OLAP Columnar Store</h4>
-                <div class="step-tech-tag">ClickHouse 24.1 MergeTree</div>
-                <p class="step-details">
-                    Vectorized SIMD queries and ZSTD compression. Executes multi-million row analytics in under 5 milliseconds.
-                </p>
-            </div>
-
-            <!-- Step 5 -->
-            <div class="pipeline-step-card">
-                <div class="step-number">5</div>
-                <div class="step-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-                </div>
-                <h4 class="step-title">Serving &amp; Terminal</h4>
-                <div class="step-tech-tag">FastAPI &bull; Server-Sent Events</div>
-                <p class="step-details">
-                    Non-blocking asynchronous event loop streaming live ticks, keyset cursors, and mathematical fee hurdle modeling.
-                </p>
             </div>
         </div>
     </section>
 
     <!-- ========================================================================= -->
-    <!-- 7. INTERACTIVE SPREAD & TDS CALCULATOR                                    -->
+    <!-- 7. QUANTITATIVE SANDBOX & SPREAD CALCULATOR                               -->
     <!-- ========================================================================= -->
-    <section class="section-container" id="calculator">
-        <div class="section-head">
-            <div class="section-eyebrow">Real-Time Sandbox</div>
-            <h2 class="section-title">Interactive Arbitrage &amp; TDS Hurdle Calculator</h2>
-            <p class="section-desc">
-                Simulate whether an opportunity clears the 0.35% round-trip exchange fee hurdle or remains locked by Indian statutory taxes.
-            </p>
-        </div>
+    <section class="bento-section" id="sandbox">
+        <div class="section-tag">Interactive Quantitative Sandbox</div>
+        <h2 class="section-heading-lg">Arbitrage &amp; Statutory Hurdle Calculator</h2>
+        <p class="section-summary-text">
+            Simulate institutional trade blocks against live exchange order books, fee hurdles, and Indian tax locks.
+        </p>
 
-        <div class="calculator-card">
-            <div class="calc-grid">
+        <div class="calc-shell">
+            <div class="calc-dual-grid">
                 <!-- Inputs Side -->
-                <div class="calc-inputs">
-                    <div class="calc-field-group">
-                        <label class="calc-label">Select Asset Pair</label>
-                        <div class="asset-pill-group">
-                            <button class="asset-pill-btn active" data-sym="BTC" onclick="setCalcSymbol('BTC')">BTC</button>
-                            <button class="asset-pill-btn" data-sym="ETH" onclick="setCalcSymbol('ETH')">ETH</button>
-                            <button class="asset-pill-btn" data-sym="SOL" onclick="setCalcSymbol('SOL')">SOL</button>
-                            <button class="asset-pill-btn" data-sym="XRP" onclick="setCalcSymbol('XRP')">XRP</button>
-                            <button class="asset-pill-btn" data-sym="DOGE" onclick="setCalcSymbol('DOGE')">DOGE</button>
-                            <button class="asset-pill-btn" data-sym="LTC" onclick="setCalcSymbol('LTC')">LTC</button>
+                <div class="calc-input-block">
+                    <div>
+                        <label style="font-size:0.8rem; font-family:var(--lp-font-mono); color:var(--lp-text-muted); display:block; margin-bottom:8px;">SELECT ASSET</label>
+                        <div class="calc-asset-buttons">
+                            <button class="calc-asset-btn active" data-sym="BTC" onclick="selectAsset('BTC')">BTC</button>
+                            <button class="calc-asset-btn" data-sym="ETH" onclick="selectAsset('ETH')">ETH</button>
+                            <button class="calc-asset-btn" data-sym="SOL" onclick="selectAsset('SOL')">SOL</button>
+                            <button class="calc-asset-btn" data-sym="XRP" onclick="selectAsset('XRP')">XRP</button>
+                            <button class="calc-asset-btn" data-sym="DOGE" onclick="selectAsset('DOGE')">DOGE</button>
+                            <button class="calc-asset-btn" data-sym="LTC" onclick="selectAsset('LTC')">LTC</button>
                         </div>
                     </div>
 
-                    <div class="calc-field-group">
-                        <label class="calc-label" for="calcAmountInput">Simulated Order Notional (USD)</label>
-                        <div class="calc-input-wrapper">
-                            <input type="number" id="calcAmountInput" class="calc-input" value="50000" step="5000" min="1000" max="1000000" oninput="onCalcAmountChange(this.value)">
-                        </div>
-                        <span style="font-size:0.75rem; color:var(--text-muted);">Standard institutional block size ($1k to $1M USD)</span>
+                    <div>
+                        <label for="notionalInput" style="font-size:0.8rem; font-family:var(--lp-font-mono); color:var(--lp-text-muted); display:block; margin-bottom:8px;">SIMULATED NOTIONAL SIZE (USD)</label>
+                        <input type="number" id="notionalInput" class="calc-notional-input" value="50000" step="10000" min="1000" max="5000000" oninput="onNotionalInput(this.value)">
+                        <span style="font-size:0.75rem; color:var(--lp-text-muted); margin-top:4px; display:block;">Typical institutional block: $10k to $1M USD</span>
                     </div>
 
-                    <div id="calcArbStatus">
+                    <div id="calcVerdictBox">
                         <!-- Populated dynamically via landing.js -->
                     </div>
                 </div>
 
                 <!-- Outputs Side -->
-                <div class="calc-output-box">
-                    <div class="output-row">
-                        <span style="color:var(--text-secondary);">Cross-Venue Gross Spread</span>
-                        <span class="output-val" id="calcGrossSpreadPct">0.003%</span>
+                <div class="calc-results-card">
+                    <div class="metric-line-item">
+                        <span style="color:var(--lp-text-secondary);">Live Cross-Venue Gross Spread</span>
+                        <span class="metric-line-val" id="calcGrossVal">0.003%</span>
                     </div>
-                    <div class="output-row">
-                        <span style="color:var(--text-secondary);">Round-Trip Fee Hurdle (0.35%)</span>
-                        <span class="output-val" style="color:var(--color-amber);" id="calcHurdleUSD">$175.00</span>
+                    <div class="metric-line-item">
+                        <span style="color:var(--lp-text-secondary);">Round-Trip Fee Hurdle (0.35%)</span>
+                        <span class="metric-line-val" style="color:var(--lp-amber);" id="calcHurdleVal">-$175.00</span>
                     </div>
-                    <div class="output-row">
-                        <span style="color:var(--text-secondary);">Net Arbitrage Profit / Loss</span>
-                        <span class="output-val" id="calcNetProfitUSD">-$173.50</span>
+                    <div class="metric-line-item">
+                        <span style="color:var(--lp-text-secondary);">Net Alpha Profit / Loss</span>
+                        <span class="metric-line-val" id="calcNetVal">-$173.50 (-0.347%)</span>
                     </div>
-                    <div class="output-row">
-                        <span style="color:var(--text-secondary);">Net Profit Margin</span>
-                        <span class="output-val" id="calcNetProfitPct">-0.347%</span>
+                    <div class="metric-line-item">
+                        <span style="color:var(--lp-text-secondary);">Domestic CoinDCX Gross Premium</span>
+                        <span class="metric-line-val" style="color:var(--lp-cyan);" id="calcPremVal">+₹6,42,850 (+14.6%)</span>
                     </div>
-                    <div class="output-row">
-                        <span style="color:var(--text-secondary);">Domestic India Premium</span>
-                        <span class="output-val output-highlight" id="calcIndiaPremINR">+₹6,42,850 (+14.6%)</span>
-                    </div>
-                    <div class="output-row">
-                        <span style="color:var(--text-secondary);">Section 194S TDS Deducted (1%)</span>
-                        <span class="output-val" style="color:var(--color-red);" id="calcTdsINR">₹44,095</span>
+                    <div class="metric-line-item">
+                        <span style="color:var(--lp-text-secondary);">Section 194S TDS Deducted (1%)</span>
+                        <span class="metric-line-val" style="color:var(--lp-red);" id="calcTdsVal">₹44,095</span>
                     </div>
 
-                    <div class="regulatory-alert-box">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        <span><strong>Capital Control Locked:</strong> 1% TDS on all domestic sells &amp; RBI $250k LRS limits prevent riskless cross-border arbitrage extraction.</span>
+                    <div style="margin-top:14px; padding:10px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:6px; font-size:0.75rem; color:var(--lp-red); line-height:1.4;">
+                        <strong>Capital Control Lock:</strong> 1% TDS on domestic sells and RBI $250k/year LRS limits eliminate riskless fiat repatriation.
                     </div>
                 </div>
             </div>
@@ -519,88 +472,74 @@
     </section>
 
     <!-- ========================================================================= -->
-    <!-- 8. QUANTITATIVE BENCHMARKS & LOAD TEST RESULTS                            -->
+    <!-- 8. EXTERNAL EXAMINER & VIVA DEFENSE SPECS                                 -->
     <!-- ========================================================================= -->
-    <section class="section-container" id="benchmarks">
-        <div class="section-head">
-            <div class="section-eyebrow">Empirical Results</div>
-            <h2 class="section-title">Tested Under Simulated Market Stress</h2>
-            <p class="section-desc">
-                Verified with our synthetic load testing utility (<code>benchmarks/load_test_pipeline.py</code>) across multiple stress cycles.
-            </p>
-        </div>
+    <section class="bento-section" id="viva-defense">
+        <div class="section-tag">Academic &amp; Portfolio Defense Guide</div>
+        <h2 class="section-heading-lg">Architectural Rationale for Examiners</h2>
+        <p class="section-summary-text">
+            Concrete architectural justifications for external viva voce examinations and technical defense.
+        </p>
 
-        <div class="benchmarks-grid">
-            <div class="benchmark-card">
-                <div class="benchmark-num" style="color:var(--brand-accent);">5,000/s</div>
-                <h4 class="benchmark-title">Burst Ingestion Rate</h4>
-                <p class="benchmark-desc">
-                    Kafka KRaft partitions sustained 5,000 ticks/sec burst injections with zero unacknowledged message drops.
+        <div class="bento-grid-layout">
+            <div class="bento-card">
+                <div style="font-family:var(--lp-font-mono); font-size:0.75rem; color:var(--lp-cyan); margin-bottom:8px;">Q1: WHY KAFKA + SPARK?</div>
+                <h4 style="font-size:1.05rem; font-weight:700; color:var(--lp-text-primary); margin-bottom:8px;">Decoupled Buffer &amp; State</h4>
+                <p style="font-size:0.85rem; color:var(--lp-text-secondary); line-height:1.5;">
+                    Direct WebSocket writes to ClickHouse cause packet drops during table compaction. Kafka acts as an immutable commit log; Spark manages stateful tumbling windows across distributed partitions.
                 </p>
             </div>
 
-            <div class="benchmark-card">
-                <div class="benchmark-num" style="color:var(--color-green);">3.8x</div>
-                <h4 class="benchmark-title">Storage Compression</h4>
-                <p class="benchmark-desc">
-                    ClickHouse columnar ZSTD and DoubleDelta timestamp encoding reduced uncompressed JSON footprint from 220 bytes to ~55 bytes per tick.
+            <div class="bento-card">
+                <div style="font-family:var(--lp-font-mono); font-size:0.75rem; color:var(--lp-green); margin-bottom:8px;">Q2: WHY CLICKHOUSE OLAP?</div>
+                <h4 style="font-size:1.05rem; font-weight:700; color:var(--lp-text-primary); margin-bottom:8px;">SIMD Vectorized Execution</h4>
+                <p style="font-size:0.85rem; color:var(--lp-text-secondary); line-height:1.5;">
+                    PostgreSQL row storage suffers buffer cache thrashing at high ingest. ClickHouse stores columns contiguously with ZSTD, evaluating aggregations over 100,000+ rows in under 5 milliseconds.
                 </p>
             </div>
 
-            <div class="benchmark-card">
-                <div class="benchmark-num" style="color:var(--color-green);">0.00%</div>
-                <h4 class="benchmark-title">Packet Drop Rate</h4>
-                <p class="benchmark-desc">
-                    Zero message loss verified across Kafka broker flush cycles and Spark Structured Streaming state checkpoints.
+            <div class="bento-card">
+                <div style="font-family:var(--lp-font-mono); font-size:0.75rem; color:var(--lp-amber); margin-bottom:8px;">Q3: LATE-ARRIVING DATA?</div>
+                <h4 style="font-size:1.05rem; font-weight:700; color:var(--lp-text-primary); margin-bottom:8px;">Event-Time Watermarks</h4>
+                <p style="font-size:0.85rem; color:var(--lp-text-secondary); line-height:1.5;">
+                    Spark maintains a 30-second watermark: <code>withWatermark('timestamp', '30s')</code>. Ticks delayed up to 30s update stateful windows; older ticks are discarded to bound memory growth.
                 </p>
             </div>
         </div>
     </section>
 
     <!-- ========================================================================= -->
-    <!-- 9. BOTTOM CTA BANNER                                                      -->
+    <!-- 9. INSTITUTIONAL CTA BANNER                                               -->
     <!-- ========================================================================= -->
-    <section class="section-container">
-        <div class="cta-banner-card">
-            <h2 class="cta-banner-title">Experience CryptoPulse Live</h2>
-            <p class="cta-banner-desc">
-                Inspect live trade executions, interactive candlestick charts, volatility anomaly alerts, and multi-exchange spread matrices.
+    <section class="bento-section">
+        <div class="institutional-cta-box">
+            <h2 class="cta-box-title">Ready to Inspect the Live Production Stream?</h2>
+            <p class="cta-box-sub">
+                Explore real-time trade blotters, interactive order book depth, anomaly event feeds, and dual-currency conversion in the institutional terminal.
             </p>
-            <a href="/app" class="btn-cta-primary" style="background:#3B82F6;">
-                <span>Launch Institutional Dashboard</span>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
+            <a href="/app" class="hero-primary-btn" style="display:inline-flex;">
+                <span>Open Trading Terminal [Press T]</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </a>
         </div>
     </section>
 
     <!-- ========================================================================= -->
-    <!-- 10. SITE FOOTER                                                           -->
+    <!-- 10. CLEAN TECHNICAL FOOTER                                                -->
     <!-- ========================================================================= -->
-    <footer class="site-footer">
-        <div class="footer-inner">
-            <div class="footer-left">
-                <div class="brand-logo-icon" style="width:32px; height:32px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                        <polygon points="12 2 19 8.5 19 15.5 12 22 5 15.5 5 8.5 12 2"></polygon>
-                    </svg>
-                </div>
-                <span class="brand-name" style="font-size:1.1rem;">CryptoPulse</span>
+    <footer class="page-footer">
+        <div class="footer-inner-wrap">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-weight:700; color:var(--lp-text-primary);">CryptoPulse</span>
+                <span style="color:var(--lp-text-faint);">&bull;</span>
+                <span>Distributed Streaming &amp; Multi-Venue Arbitrage Engine</span>
             </div>
 
-            <ul class="footer-links">
-                <li><a href="/app" class="footer-link">Trading Terminal</a></li>
-                <li><a href="#pipeline" class="footer-link">Architecture</a></li>
-                <li><a href="#calculator" class="footer-link">Calculator</a></li>
-                <li><a href="https://github.com/Soorya005/CryptoPulse" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub Repo</a></li>
-            </ul>
-        </div>
-
-        <div class="footer-bottom">
-            <span>&copy; 2026 CryptoPulse Streaming Analytics &bull; MIT License</span>
-            <span style="font-family:var(--font-mono); font-size:0.75rem;">Kafka &bull; Spark &bull; ClickHouse &bull; FastAPI</span>
+            <div style="display:flex; gap:20px; font-family:var(--lp-font-mono); font-size:0.75rem;">
+                <a href="/app" style="color:var(--lp-text-secondary); text-decoration:none;">[Terminal]</a>
+                <a href="#pipeline-sim" style="color:var(--lp-text-secondary); text-decoration:none;">[Tracer]</a>
+                <a href="https://github.com/Soorya005/CryptoPulse" target="_blank" rel="noopener noreferrer" style="color:var(--lp-cyan); text-decoration:none;">[GitHub Repo]</a>
+            </div>
         </div>
     </footer>
 
