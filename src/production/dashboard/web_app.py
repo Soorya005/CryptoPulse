@@ -1,15 +1,45 @@
 """
-Stock/Crypto Dashboard - Web API
+=============================================================================
+CRYPTOPULSE — HIGH-PERFORMANCE FASTAPI BACKEND FOR CLICKHOUSE CRYPTO ANALYTICS
+=============================================================================
 
-FastAPI backend serving the dual-currency dashboard and providing
-API endpoints for ClickHouse crypto tick and aggregate data.
+System Overview:
+----------------
+This FastAPI service acts as the high-throughput REST and Server-Sent Events (SSE)
+data access layer for the CryptoPulse streaming architecture. It bridges real-time
+analytical queries directly against the ClickHouse columnar OLAP database,
+incorporates multi-exchange market feeds (Coinbase, Kraken, CoinDCX), and exposes
+endpoints for institutional trading dashboards.
 
-Run with:
+Architecture & Storage Schema:
+------------------------------
+- ClickHouse Database: `stocks`
+  - `stocks.ticks`: Raw sub-second tick trades (symbol, price, price_inr, volume,
+    side, exchange_rate, timestamp).
+  - `stocks.ticks_1m_agg`: Spark-materialized 1-minute candlestick aggregates
+    (open, high, low, close, volume, vwap, trade_count).
+  - `stocks.market_alerts`: Real-time anomaly detections (price returns, Z-Scores,
+    severity tags, threshold flags).
+
+Key Algorithms & Query Patterns:
+--------------------------------
+1. Atomic Latest Prices:
+   Uses ClickHouse `argMax(price, timestamp)` tuple aggregation for sub-millisecond
+   latest tick resolution without expensive subqueries or window functions.
+2. Order Flow Imbalance (OFI):
+   Applies the Lee-Ready (1991) tick rule to classify signed volume (buyer vs seller
+   initiated) across rolling 1-minute trade windows.
+3. Multi-Exchange Arbitrage & India Premium:
+   Asynchronously aggregates Coinbase Pro, Kraken, and CoinDCX order books to track
+   cross-market spreads with fee hurdles (0.35%) and regulatory tax friction (1% TDS).
+4. SSE Cursor Tracking:
+   Maintains high-watermark microsecond timestamps to stream new ticks without
+   duplication or missing events during high-velocity bursts.
+
+Execution:
+----------
     uvicorn src.production.dashboard.web_app:app --reload --port 8502
-
-Or:
-    python src/production/dashboard/web_app.py
-    python src/production/dashboard/web_app.py --crypto   # Crypto dashboard
+    python src/production/dashboard/web_app.py --crypto
 """
 
 import argparse
@@ -1026,50 +1056,6 @@ async def get_india_regulatory_premium():
     """
     prices, fx = get_current_live_prices()
     return multi_exchange_service.compute_india_premium(prices, fx)
-
-
-# =============================================================================
-# WEBHOOK SIMULATOR & TEST DISPATCHER
-# =============================================================================
-
-@app.post("/api/alerts/webhook/simulate")
-async def simulate_alert_webhook(symbol: str = "BTC"):
-    """
-    Trigger a simulated or test volatility alert dispatch to test webhook pipelines.
-    """
-    symbol = symbol.strip().upper()
-    if symbol not in ALLOWED_SYMBOLS:
-        symbol = "BTC"
-
-    sample_payload = {
-        "event": "MARKET_VOLATILITY_ALERT",
-        "symbol": symbol,
-        "alert_time": datetime.now(timezone.utc).isoformat(),
-        "observed_price": 68450.00,
-        "price_return_pct": 2.45,
-        "z_score": 3.42,
-        "threshold": 3.0,
-        "sample_count": 28,
-        "status": "DISPATCHED" if os.environ.get("ALERT_WEBHOOK_URL") else "SIMULATED_LOCAL",
-        "webhook_url": os.environ.get("ALERT_WEBHOOK_URL") or "Not configured (local simulation mode)",
-    }
-
-    webhook_url = os.environ.get("ALERT_WEBHOOK_URL", "").strip()
-    if webhook_url:
-        import urllib.request
-        try:
-            req = urllib.request.Request(
-                webhook_url,
-                data=json.dumps(sample_payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
-                sample_payload["response_code"] = resp.getcode()
-        except Exception as e:
-            sample_payload["error"] = str(e)
-
-    return sample_payload
 
 
 # =============================================================================

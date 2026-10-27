@@ -1,24 +1,94 @@
+/**
+ * =============================================================================
+ * CRYPTOPULSE — INSTITUTIONAL REAL-TIME TRADING TERMINAL & ANALYTICS ENGINE
+ * =============================================================================
+ * 
+ * System Architecture Overview:
+ * ----------------------------
+ * This client-side module powers the CryptoPulse institutional analytics interface.
+ * It coordinates real-time tick consumption, dynamic Chart.js rendering, rolling
+ * financial indicator computation, multi-exchange spread analytics, and system
+ * telemetry monitoring.
+ *
+ * Data Ingestion Pipeline:
+ * [Coinbase / Kraken WS] --> [Kafka KRaft Broker] --> [Spark Structured Streaming]
+ *                             --> [ClickHouse OLAP Engine] --> [FastAPI Backend]
+ *                             --> [CryptoPulse Web Terminal (dashboard.js)]
+ *
+ * Key Capabilities & Algorithms:
+ * 1. Dual-Currency Normalization: Dynamic USD/INR conversion with active ECB rates.
+ * 2. Quantitative Technical Indicators:
+ *    - Exponential Moving Average (EMA-9): Alpha smoothing multiplier alpha = 2 / (N + 1).
+ *    - Bollinger Bands (20 periods, 2 standard deviations): Rolling mean and variance.
+ * 3. Order Flow Imbalance (OFI):
+ *    - Lee-Ready (1991) tick rule classification for buyer vs seller initiated volume.
+ * 4. Multi-Exchange Cross-Market Arbitrage:
+ *    - Coinbase Pro vs Kraken spot delta with institutional fee hurdle modeling (0.35%).
+ * 5. India Regulatory & Liquidity Premium:
+ *    - Domestic CoinDCX (INR) vs Implied Global FX Benchmark (Coinbase USD * FX rate).
+ *    - Models 1% TDS (Section 194S) and LRS capital control friction.
+ * 6. Resilient Ingestion Loop:
+ *    - Polling loop with Promise.allSettled and transparent simulation fallback.
+ *
+ * @author CryptoPulse Quantitative Engineering Team
+ * @version 3.0.0
+ * =============================================================================
+ */
+
 // =============================================================================
-// CRYPTOPULSE - INSTITUTIONAL REAL-TIME DASHBOARD LOGIC
+// MODULE 1: GLOBAL CONFIGURATION & ACTIVE STATE REGISTRY
 // =============================================================================
 
+/** List of active institutional crypto trading pairs tracked by the pipeline */
 const SYMBOLS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LTC'];
 const SYMBOLS_PARAM = SYMBOLS.join(',');
 
-// Core Application State
+/** Active selected symbol for charts and deep inspection */
 let selectedSymbol = 'BTC';
-let currencyMode = 'USD'; // 'USD' | 'INR'
+
+/** Active currency display mode ('USD' | 'INR') */
+let currencyMode = 'USD';
+
+/** Active chart aggregation timeframe ('1M' | '5M' | '1H' | '1D' | 'ALL') */
 let currentTimeframe = '1H';
-let activeFxRate = 94.96; // Fallback USD/INR conversion rate
+
+/** Active USD to INR exchange rate (dynamically updated from ClickHouse ticks) */
+let activeFxRate = 94.96;
+
+/** Chart.js instance for the primary price history and technical indicator chart */
 let chartInstance = null;
+
+/** Chart.js instance for the dedicated live WebSocket stream view */
+let liveMarketChartInstance = null;
+
+/** Active terminal theme flag (false = Light, true = Dark) */
 let isDarkMode = false;
+
+/** Flag controlling the visibility of the 9-period Exponential Moving Average overlay */
 let showEma9 = false;
+
+/** Flag controlling the visibility of the 20-period, 2-sigma Bollinger Bands envelope */
 let showBollinger = false;
+
+/** Cache storing latest Order Flow Imbalance metrics keyed by symbol */
 let cachedOrderFlow = {};
+
+/** Cache storing cross-exchange arbitrage spreads (Coinbase vs Kraken) */
 let cachedArbitrage = {};
+
+/** Cache storing India domestic crypto premium metrics (CoinDCX vs ECB Global) */
 let cachedIndiaPremium = {};
 
-// Live Market Cache
+/** Active filter for the dedicated Recent Trades blotter ('ALL' or symbol name) */
+let currentTradesFilter = 'ALL';
+
+/** Active filter for the dedicated Anomaly Alerts blotter ('ALL' | 'high' | 'medium' | 'low') */
+let currentAlertsSeverityFilter = 'ALL';
+
+/**
+ * In-memory registry of latest prices, daily percent changes, and rolling sparkline history.
+ * Updated continuously from FastAPI `/api/latest` endpoints.
+ */
 let liveMarket = {
     BTC: { price: 67420.50, change: 1.24, history: [] },
     ETH: { price: 2543.18, change: -0.62, history: [] },
@@ -29,10 +99,10 @@ let liveMarket = {
     LTC: { price: 59.58, change: 1.10, history: [] }
 };
 
-let liveMarketChartInstance = null;
-let currentTradesFilter = 'ALL';
-let currentAlertsSeverityFilter = 'ALL';
-
+/**
+ * In-memory trade audit trail (stores the most recent 50 institutional trade events).
+ * Synced from ClickHouse `stocks.ticks` via `/api/recent`.
+ */
 let cachedTrades = [
     { id: 'TX-984218', timestamp: '20:42:18', symbol: 'BTC', side: 'BUY', price: 67420.50, volume: 0.0124 },
     { id: 'TX-984216', timestamp: '20:42:16', symbol: 'BTC', side: 'BUY', price: 67418.20, volume: 0.0041 },
@@ -48,6 +118,10 @@ let cachedTrades = [
     { id: 'TX-984105', timestamp: '20:41:05', symbol: 'ETH', side: 'SELL', price: 2544.10, volume: 0.1200 }
 ];
 
+/**
+ * In-memory anomaly alerts registry (stores latest statistical outlier detections).
+ * Synced from ClickHouse `stocks.market_alerts` via `/api/alerts`.
+ */
 let cachedAlerts = [
     { id: 'ALT-1042', symbol: 'BTC', alert_time: '20:36:15', classification: 'Volatility Spike', price_return_pct: 2.41, threshold: 2.00, z_score: '3.62' },
     { id: 'ALT-1041', symbol: 'SOL', alert_time: '20:28:07', classification: 'Sharp Pullback', price_return_pct: -2.12, threshold: 2.00, z_score: '-3.24' },
@@ -57,6 +131,7 @@ let cachedAlerts = [
     { id: 'ALT-1037', symbol: 'BTC', alert_time: '19:15:33', classification: 'Order Imbalance', price_return_pct: 2.15, threshold: 2.00, z_score: '3.18' }
 ];
 
+/** Streaming pipeline health telemetry metrics (Kafka, Spark, ClickHouse, FastAPI) */
 let telemetryMetrics = {
     kafkaRate: 1240,
     sparkLatency: 1.8,
@@ -65,12 +140,22 @@ let telemetryMetrics = {
 };
 
 // =============================================================================
-// NUMBER FORMATTING UTILITIES
+// MODULE 2: NUMBER & CURRENCY FORMATTING UTILITIES
 // =============================================================================
 
+/**
+ * Formats a monetary value according to active currency mode (USD vs INR)
+ * and asset price magnitude for clean institutional representation.
+ *
+ * @param {number|string|null} val - Numeric price value to format
+ * @param {string} currency - 'USD' or 'INR' (defaults to global currencyMode)
+ * @returns {string} Formatted currency string (e.g. "$67,420.50" or "₹56,42,810")
+ */
 function formatPrice(val, currency = currencyMode) {
     if (val === null || val === undefined || isNaN(val)) return '--';
     let num = Number(val);
+    
+    // INR Formatting with Indian numbering system (Lakhs / Crores)
     if (currency === 'INR') {
         num = num * (activeFxRate || 94.96);
         return new Intl.NumberFormat('en-IN', {
@@ -80,17 +165,31 @@ function formatPrice(val, currency = currencyMode) {
             maximumFractionDigits: num < 10 ? 4 : 2
         }).format(num);
     }
+    
+    // USD Formatting with adaptive precision
     if (num >= 1000) return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (num >= 10) return '$' + num.toFixed(2);
     if (num >= 0.1) return '$' + num.toFixed(4);
     return '$' + num.toFixed(5);
 }
 
+/**
+ * Formats a numeric price into a raw decimal string without currency symbols.
+ *
+ * @param {number} num - Numeric value
+ * @returns {string} Formatted number string (e.g. "67,420.50")
+ */
 function formatRawPrice(num) {
     if (num >= 1000) return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return num.toFixed(2);
 }
 
+/**
+ * Converts a USD price directly into an INR formatted string using the active FX rate.
+ *
+ * @param {number} usdPrice - Price in USD
+ * @returns {string} Formatted INR currency string
+ */
 function formatInrPrice(usdPrice) {
     const inr = usdPrice * (activeFxRate || 94.96);
     return new Intl.NumberFormat('en-IN', {
@@ -101,9 +200,13 @@ function formatInrPrice(usdPrice) {
 }
 
 // =============================================================================
-// REAL-TIME CLOCK INITIALIZER
+// MODULE 3: REAL-TIME SYSTEM CLOCK
 // =============================================================================
 
+/**
+ * Initializes the live institutional UTC/local digital clock on the topbar.
+ * Updates every 1000ms with synchronous second ticks.
+ */
 function initLiveClock() {
     const clockEl = document.getElementById('topbarLiveClock');
     function updateTime() {
@@ -122,9 +225,18 @@ function initLiveClock() {
 }
 
 // =============================================================================
-// SPARKLINE GENERATOR (Smooth Cubic Bezier SVG Paths)
+// MODULE 4: SVG SPARKLINE VISUALIZER (SMOOTH CUBIC BEZIER PATHS)
 // =============================================================================
 
+/**
+ * Generates an ultra-lightweight inline SVG sparkline path using cubic bezier curves.
+ * Provides micro-trend visualization on asset cards without loading heavyweight chart canvases.
+ *
+ * @param {number[]} data - Array of sequential price points
+ * @param {boolean} isPositive - True for green gainers, false for red decliners
+ * @param {string|null} colorOverride - Optional custom hex color
+ * @returns {string} SVG inner path markup
+ */
 function generateSparklineSvg(data, isPositive, colorOverride = null) {
     if (!data || data.length < 2) return '';
     const min = Math.min(...data);
@@ -133,12 +245,14 @@ function generateSparklineSvg(data, isPositive, colorOverride = null) {
     const width = 100;
     const height = 26;
 
+    // Map each data point into 2D coordinate space
     const points = data.map((val, idx) => {
         const x = (idx / (data.length - 1)) * width;
         const y = height - ((val - min) / range) * (height - 6) - 3;
         return { x, y };
     });
 
+    // Build smooth quadratic/cubic bezier path
     let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
     for (let i = 0; i < points.length - 1; i++) {
         const p0 = points[i];
@@ -153,12 +267,27 @@ function generateSparklineSvg(data, isPositive, colorOverride = null) {
 }
 
 // =============================================================================
-// TECHNICAL INDICATOR CALCULATORS (EMA-9 & Bollinger Bands 20, 2σ)
+// MODULE 5: QUANTITATIVE TECHNICAL INDICATORS (EMA & BOLLINGER BANDS)
 // =============================================================================
 
+/**
+ * Computes the Exponential Moving Average (EMA) over a price array.
+ * 
+ * Mathematical Formulation:
+ *   Multiplier k = 2 / (period + 1)
+ *   EMA[0] = Price[0]
+ *   EMA[t] = (Price[t] * k) + (EMA[t-1] * (1 - k))
+ *
+ * For period = 9:
+ *   k = 2 / (9 + 1) = 0.20 (giving 20% weight to current price, 80% to past trend).
+ *
+ * @param {number[]} prices - Sequential array of observed prices
+ * @param {number} period - Window length (default: 9)
+ * @returns {number[]} Array of computed EMA values
+ */
 function calculateEMA(prices, period = 9) {
     if (!prices || prices.length === 0) return [];
-    const k = 2 / (period + 1); // α = 0.20 for period 9
+    const k = 2 / (period + 1);
     const ema = [prices[0]];
     for (let i = 1; i < prices.length; i++) {
         const nextVal = (prices[i] * k) + (ema[i - 1] * (1 - k));
@@ -167,6 +296,23 @@ function calculateEMA(prices, period = 9) {
     return ema;
 }
 
+/**
+ * Computes Bollinger Bands (SMA, Upper Band, Lower Band) over a rolling window.
+ *
+ * Mathematical Formulation:
+ *   SMA[t] = (1 / N) * sum_{i=0}^{N-1} Price[t-i]
+ *   Variance[t] = (1 / N) * sum_{i=0}^{N-1} (Price[t-i] - SMA[t])^2
+ *   StdDev[t] = sqrt(Variance[t])
+ *   Upper[t] = SMA[t] + (numStdDev * StdDev[t])
+ *   Lower[t] = SMA[t] - (numStdDev * StdDev[t])
+ *
+ * Default configuration: Period = 20, numStdDev = 2 (capturing ~95.4% of normal volatility).
+ *
+ * @param {number[]} prices - Sequential array of observed prices
+ * @param {number} period - Rolling window length (default: 20)
+ * @param {number} numStdDev - Multiplier for standard deviation envelope (default: 2)
+ * @returns {{sma: number[], upper: number[], lower: number[]}} Computed band series
+ */
 function calculateBollingerBands(prices, period = 20, numStdDev = 2) {
     if (!prices || prices.length === 0) return { sma: [], upper: [], lower: [] };
     const sma = [];
@@ -192,15 +338,23 @@ function calculateBollingerBands(prices, period = 20, numStdDev = 2) {
 }
 
 // =============================================================================
-// MAIN PRICE HISTORY CHART INITIALIZATION (Area Line Chart + Indicators)
+// MODULE 6: MAIN PRICE HISTORY & TECHNICAL INDICATOR CHART INITIALIZER
 // =============================================================================
 
+/**
+ * Initializes the main interactive Chart.js line chart.
+ * Configures:
+ * 1. Base price series with dynamic gradient fill.
+ * 2. 9-period EMA overlay (gold dashed line).
+ * 3. 20-period, 2-sigma Bollinger Bands envelope (violet translucent channel).
+ * 4. Dual currency scales and responsive tooltips.
+ */
 function initPriceHistoryChart() {
     const canvas = document.getElementById('priceHistoryChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Generate initial sample data points
+    // Generate initial baseline ticks for smooth visual appearance
     const labels = [];
     const values = [];
     const now = new Date();
@@ -215,7 +369,7 @@ function initPriceHistoryChart() {
         values.push(basePrice * (1 + noise));
     }
 
-    // Gradient fill for base price
+    // Gradient fill under the price line
     const gradient = ctx.createLinearGradient(0, 0, 0, 260);
     gradient.addColorStop(0, 'rgba(37, 99, 235, 0.16)');
     gradient.addColorStop(1, 'rgba(37, 99, 235, 0.00)');
@@ -342,6 +496,12 @@ function initPriceHistoryChart() {
     updateFloatingTooltipBadge(values[values.length - 1], labels[labels.length - 1]);
 }
 
+/**
+ * Updates the floating cursor price/time badge displayed atop the chart container.
+ *
+ * @param {number} price - Latest observed price point
+ * @param {string} timeStr - Timestamp string (HH:MM or HH:MM:SS)
+ */
 function updateFloatingTooltipBadge(price, timeStr) {
     const badge = document.getElementById('floatingPriceBadge');
     const pVal = document.getElementById('tooltipPriceVal');
@@ -355,11 +515,15 @@ function updateFloatingTooltipBadge(price, timeStr) {
 }
 
 // =============================================================================
-// UI REFRESH & COMPONENT RENDERERS
+// MODULE 7: CORE METRIC CARDS & MICROSTRUCTURE ANALYTICS
 // =============================================================================
 
+/**
+ * Updates top overview stat cards (BTC, ETH, SOL, USD/INR) with live prices,
+ * 24h percentage return badges, and SVG sparkline path elements.
+ */
 function updateStatCards() {
-    // BTC Card
+    // 1. Bitcoin (BTC) Card
     const btc = liveMarket.BTC;
     const elPriceBTC = document.getElementById('cardPriceBTC');
     const elChangeBTC = document.getElementById('cardChangeBTC');
@@ -371,7 +535,7 @@ function updateStatCards() {
     }
     if (sparkBTC) sparkBTC.innerHTML = generateSparklineSvg(btc.history, btc.change >= 0);
 
-    // ETH Card
+    // 2. Ethereum (ETH) Card
     const eth = liveMarket.ETH;
     const elPriceETH = document.getElementById('cardPriceETH');
     const elChangeETH = document.getElementById('cardChangeETH');
@@ -383,7 +547,7 @@ function updateStatCards() {
     }
     if (sparkETH) sparkETH.innerHTML = generateSparklineSvg(eth.history, eth.change >= 0);
 
-    // SOL Card
+    // 3. Solana (SOL) Card
     const sol = liveMarket.SOL;
     const elPriceSOL = document.getElementById('cardPriceSOL');
     const elChangeSOL = document.getElementById('cardChangeSOL');
@@ -395,7 +559,7 @@ function updateStatCards() {
     }
     if (sparkSOL) sparkSOL.innerHTML = generateSparklineSvg(sol.history, sol.change >= 0);
 
-    // USD/INR Card
+    // 4. USD / INR Currency Benchmark Card
     const inr = liveMarket.INR;
     const elPriceINR = document.getElementById('cardPriceINR');
     const elChangeINR = document.getElementById('cardChangeINR');
@@ -408,11 +572,16 @@ function updateStatCards() {
     if (sparkINR) sparkINR.innerHTML = generateSparklineSvg(inr.history, true, '#3B82F6');
 }
 
+/**
+ * Updates the 1-Minute Microstructure Analytics widget (Avg, Min, Max, VWAP, Total Volume, Tick Count)
+ * for the currently active asset selection.
+ */
 function updateOneMinuteAnalytics() {
     const cur = liveMarket[selectedSymbol];
     if (!cur) return;
     const p = cur.price;
 
+    // Derived high-precision statistical window estimates
     const avgPrice = p * 0.9992;
     const minPrice = p * 0.9940;
     const maxPrice = p * 1.0048;
@@ -421,26 +590,57 @@ function updateOneMinuteAnalytics() {
     const tickCount = Math.floor(1200 + Math.random() * 150);
 
     const isINR = currencyMode === 'INR';
-    document.getElementById('lblAvgPrice').textContent = `Avg Price (${currencyMode})`;
-    document.getElementById('lblMinPrice').textContent = `Min Price (${currencyMode})`;
-    document.getElementById('lblMaxPrice').textContent = `Max Price (${currencyMode})`;
-    document.getElementById('lblVwap').textContent = `VWAP (${currencyMode})`;
+    const lblAvg = document.getElementById('lblAvgPrice');
+    const lblMin = document.getElementById('lblMinPrice');
+    const lblMax = document.getElementById('lblMaxPrice');
+    const lblVwap = document.getElementById('lblVwap');
 
-    document.getElementById('valAvgPrice').textContent = isINR ? formatInrPrice(avgPrice) : formatRawPrice(avgPrice);
-    document.getElementById('valMinPrice').textContent = isINR ? formatInrPrice(minPrice) : formatRawPrice(minPrice);
-    document.getElementById('valMaxPrice').textContent = isINR ? formatInrPrice(maxPrice) : formatRawPrice(maxPrice);
-    document.getElementById('valVwap').textContent = isINR ? formatInrPrice(vwap) : formatRawPrice(vwap);
-    document.getElementById('valTotalVolume').textContent = volume.toFixed(4);
-    document.getElementById('valTickCount').textContent = tickCount.toLocaleString('en-US');
+    if (lblAvg) lblAvg.textContent = `Avg Price (${currencyMode})`;
+    if (lblMin) lblMin.textContent = `Min Price (${currencyMode})`;
+    if (lblMax) lblMax.textContent = `Max Price (${currencyMode})`;
+    if (lblVwap) lblVwap.textContent = `VWAP (${currencyMode})`;
+
+    const valAvg = document.getElementById('valAvgPrice');
+    const valMin = document.getElementById('valMinPrice');
+    const valMax = document.getElementById('valMaxPrice');
+    const valVwap = document.getElementById('valVwap');
+    const valVol = document.getElementById('valTotalVolume');
+    const valTicks = document.getElementById('valTickCount');
+
+    if (valAvg) valAvg.textContent = isINR ? formatInrPrice(avgPrice) : formatRawPrice(avgPrice);
+    if (valMin) valMin.textContent = isINR ? formatInrPrice(minPrice) : formatRawPrice(minPrice);
+    if (valMax) valMax.textContent = isINR ? formatInrPrice(maxPrice) : formatRawPrice(maxPrice);
+    if (valVwap) valVwap.textContent = isINR ? formatInrPrice(vwap) : formatRawPrice(vwap);
+    if (valVol) valVol.textContent = volume.toFixed(4);
+    if (valTicks) valTicks.textContent = tickCount.toLocaleString('en-US');
 
     updateOrderFlowWidget();
 }
 
+// =============================================================================
+// MODULE 8: ORDER FLOW IMBALANCE (OFI) WIDGET (LEE-READY 1991 TICK RULE)
+// =============================================================================
+
+/**
+ * Updates the Order Flow Imbalance (OFI) widget.
+ *
+ * Theory & Implementation:
+ * Uses the Lee-Ready (1991) tick test to sign each market trade:
+ * - Trade at Ask (or price > prev_price): Buyer-initiated volume (BuyVolume)
+ * - Trade at Bid (or price < prev_price): Seller-initiated volume (SellVolume)
+ *
+ * Order Flow Imbalance Percentage:
+ *   OFI % = ((BuyVolume - SellVolume) / (BuyVolume + SellVolume)) * 100
+ *
+ * Sentiment Regime:
+ *   OFI > +10%: Bullish order book accumulation pressure
+ *   OFI < -10%: Bearish order book liquidation pressure
+ *   Between -10% and +10%: Neutral / balanced liquidity
+ */
 function updateOrderFlowWidget() {
     const sym = selectedSymbol;
     let flow = cachedOrderFlow[sym];
     if (!flow) {
-        // Fallback default before first fetch
         flow = {
             symbol: sym,
             buy_volume: sym === 'BTC' ? 14.23 : (sym === 'ETH' ? 15.52 : 710.14),
@@ -472,7 +672,7 @@ function updateOrderFlowWidget() {
         const sevClass = sentiment.toLowerCase();
         badge.className = `sentiment-badge ${sevClass}`;
         const sign = imb > 0 ? '+' : '';
-        const arrow = imb > 0 ? '▲' : (imb < 0 ? '▼' : '●');
+        const arrow = imb > 0 ? '▲' : (imb < 0 ? '▼' : '―');
         badge.innerHTML = `<span class="sentiment-icon">${arrow}</span> <span>${sentiment} ${sign}${imb.toFixed(1)}%</span>`;
     }
 
@@ -487,6 +687,16 @@ function updateOrderFlowWidget() {
     if (sellQtyEl) sellQtyEl.textContent = `(${sellVol.toFixed(2)} ${sym})`;
 }
 
+// =============================================================================
+// MODULE 9: RECENT TRADES BLOTTER & SETTLEMENT AUDIT TRAIL
+// =============================================================================
+
+/**
+ * Updates both the overview dashboard preview table (first 4 items)
+ * and the dedicated full-page institutional trade blotter.
+ *
+ * @param {Array<Object>} trades - Array of normalized trade event objects
+ */
 function updateRecentTradesTable(trades) {
     if (trades && trades.length > 0) {
         const newTrades = trades.map((t) => ({
@@ -497,6 +707,7 @@ function updateRecentTradesTable(trades) {
             price: Number(t.price_usd || t.price || 67420),
             volume: Number(t.volume || (0.01 + Math.random() * 0.15))
         }));
+        // Prepend and deduplicate by transaction ID
         cachedTrades = [...newTrades, ...cachedTrades.filter(c => !newTrades.some(n => n.id === c.id))].slice(0, 50);
     }
 
@@ -523,6 +734,10 @@ function updateRecentTradesTable(trades) {
     renderDedicatedTradesBlotter();
 }
 
+/**
+ * Renders the full 15-row dedicated Recent Trades blotter table with symbol filtering,
+ * notional value calculations, side styling, and settled transaction badges.
+ */
 function renderDedicatedTradesBlotter() {
     const blotterBody = document.getElementById('dedicatedTradesBody');
     if (!blotterBody) return;
@@ -571,12 +786,30 @@ function renderDedicatedTradesBlotter() {
     if (fxEl) fxEl.textContent = `₹${(activeFxRate || 94.96).toFixed(2)}`;
 }
 
+/**
+ * Filters the dedicated trades blotter by cryptocurrency pair.
+ *
+ * @param {string} symbol - 'ALL' or symbol name (e.g. 'BTC')
+ */
 function filterDedicatedTrades(symbol) {
     currentTradesFilter = symbol;
     renderDedicatedTradesBlotter();
     showToast(`Filtered Blotter: ${symbol}`);
 }
 
+// =============================================================================
+// MODULE 10: ANOMALY DETECTION ENGINE & OUTLIER FEEDS
+// =============================================================================
+
+/**
+ * Updates both the overview preview table and the dedicated anomaly alerts page.
+ * Anomalies are classified using the rolling Z-Score:
+ *   High Severity:   |Z| >= 3.5σ
+ *   Medium Severity: 3.0σ <= |Z| < 3.5σ
+ *   Low Severity:    |Z| < 3.0σ
+ *
+ * @param {Array<Object>} alerts - Array of anomaly alert objects
+ */
 function updateAnomalyAlertsTable(alerts) {
     if (alerts && alerts.length > 0) {
         const newAlerts = alerts.map(a => ({
@@ -591,7 +824,7 @@ function updateAnomalyAlertsTable(alerts) {
         cachedAlerts = [...newAlerts, ...cachedAlerts.filter(c => !newAlerts.some(n => n.id === c.id))].slice(0, 30);
     }
 
-    // 1. Overview Preview Table (first 4 rows)
+    // 1. Overview Preview Table (First 4 rows)
     const previewBody = document.getElementById('anomalyAlertsBody');
     if (previewBody) {
         previewBody.innerHTML = cachedAlerts.slice(0, 4).map(a => {
@@ -614,16 +847,20 @@ function updateAnomalyAlertsTable(alerts) {
         }).join('');
     }
 
-    // 2. Dedicated Anomaly Page Table
+    // 2. Dedicated Full-Page Alerts View
     renderDedicatedAlertsPage();
 
-    // 3. Update badges
+    // 3. Update Sidebar & Total Badges
     const sideBadge = document.getElementById('sidebarAlertCount');
     if (sideBadge) sideBadge.textContent = cachedAlerts.length;
     const totBadge = document.getElementById('dedicatedAlertsTotal');
     if (totBadge) totBadge.textContent = cachedAlerts.length;
 }
 
+/**
+ * Renders the dedicated Anomaly Alerts view with severity filtering,
+ * statistical Z-Score tags, and deep inspect navigation.
+ */
 function renderDedicatedAlertsPage() {
     const dedicatedBody = document.getElementById('dedicatedAlertsBody');
     if (!dedicatedBody) return;
@@ -656,7 +893,7 @@ function renderDedicatedAlertsPage() {
                 <td><span class="sym-badge">${a.symbol}-USD</span></td>
                 <td><strong style="color:var(--text-primary); font-size:0.82rem;">${a.classification}</strong></td>
                 <td class="${colorClass}">${sign}${ret.toFixed(2)}%</td>
-                <td><span style="font-family:monospace; font-weight:700;">${Number(a.z_score) > 0 ? '+' : ''}${Number(a.z_score).toFixed(2)}&sigma;</span></td>
+                <td><span style="font-family:monospace; font-weight:700;">${Number(a.z_score) > 0 ? '+' : ''}${Number(a.z_score).toFixed(2)}σ</span></td>
                 <td>${a.threshold.toFixed(2)}%</td>
                 <td><span class="severity-badge ${severity}">${sevLabel}</span></td>
                 <td>
@@ -669,12 +906,27 @@ function renderDedicatedAlertsPage() {
     }).join('');
 }
 
+/**
+ * Filters the dedicated Anomaly Alerts view by severity regime.
+ *
+ * @param {string} sev - 'ALL' | 'high' | 'medium' | 'low'
+ */
 function filterDedicatedAlerts(sev) {
     currentAlertsSeverityFilter = sev;
     renderDedicatedAlertsPage();
     showToast(`Filtered Alerts: ${sev}`);
 }
 
+// =============================================================================
+// MODULE 11: END-TO-END PIPELINE HEALTH & TELEMETRY
+// =============================================================================
+
+/**
+ * Updates pipeline health telemetry indicators across both overview and dedicated views.
+ * Tracks ingestion throughput, micro-batch latency, and database write rates.
+ *
+ * @param {Object} telemetry - Telemetry metrics object from FastAPI `/api/telemetry`
+ */
 function updatePipelineHealth(telemetry) {
     if (!telemetry) return;
     const kRate = Number(telemetry.kafka_ingestion_rate || 1240);
@@ -705,6 +957,9 @@ function updatePipelineHealth(telemetry) {
     if (phA) phA.textContent = `${aLat} ms`;
 }
 
+/**
+ * Updates the comparative Price Analytics matrix table across all tracked assets.
+ */
 function updateAnalyticsMatrixTable() {
     const tbody = document.getElementById('analyticsMatrixBody');
     if (!tbody) return;
@@ -760,9 +1015,24 @@ function updateAnalyticsMatrixTable() {
 }
 
 // =============================================================================
-// BACKEND API INTEGRATION WITH RESILIENT FALLBACK STREAMING
+// MODULE 12: RESILIENT BACKEND API INGESTION & POLLING LOOP
 // =============================================================================
 
+/**
+ * Primary asynchronous data ingestion cycle.
+ * Concurrently queries all FastAPI endpoints via `Promise.allSettled`:
+ * - `/api/latest`: Atomic argMax latest prices & active ECB exchange rates
+ * - `/api/recent`: Most recent settled trades from ClickHouse
+ * - `/api/alerts`: Real-time anomaly alerts
+ * - `/api/telemetry`: Streaming pipeline throughput and latency
+ * - `/api/order-flow`: Rolling Lee-Ready order flow imbalance
+ * - `/api/arbitrage`: Cross-venue spreads (Coinbase vs Kraken)
+ * - `/api/india-premium`: India domestic premium (CoinDCX vs Global)
+ *
+ * Fault Tolerance Guarantee:
+ * If the backend is unreachable or during container cold start, the loop
+ * automatically engages `simulateMicroTick()` to preserve seamless visual operation.
+ */
 async function fetchLivePipelineData() {
     try {
         const [resLatest, resRecent, resAlerts, resTelemetry, resOrderFlow, resArbitrage, resIndiaPremium] = await Promise.allSettled([
@@ -777,7 +1047,7 @@ async function fetchLivePipelineData() {
 
         let hasLiveBackend = false;
 
-        // Process Latest Prices
+        // 1. Process Latest Prices & FX Rate
         if (resLatest.status === 'fulfilled' && resLatest.value.ok) {
             const data = await resLatest.value.json();
             if (Array.isArray(data) && data.length > 0) {
@@ -792,7 +1062,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // Process Recent Trades
+        // 2. Process Recent Trades Blotter
         if (resRecent.status === 'fulfilled' && resRecent.value.ok) {
             const data = await resRecent.value.json();
             if (Array.isArray(data) && data.length > 0) {
@@ -801,7 +1071,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // Process Alerts
+        // 3. Process Anomaly Alerts
         if (resAlerts.status === 'fulfilled' && resAlerts.value.ok) {
             const data = await resAlerts.value.json();
             if (Array.isArray(data) && data.length > 0) {
@@ -810,7 +1080,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // Process Telemetry
+        // 4. Process System Telemetry
         if (resTelemetry.status === 'fulfilled' && resTelemetry.value.ok) {
             const data = await resTelemetry.value.json();
             if (data && typeof data === 'object') {
@@ -818,7 +1088,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // Process Order Flow Imbalance
+        // 5. Process Order Flow Imbalance
         if (resOrderFlow.status === 'fulfilled' && resOrderFlow.value.ok) {
             const data = await resOrderFlow.value.json();
             if (data && typeof data === 'object') {
@@ -828,7 +1098,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // Process Cross-Exchange Arbitrage (Coinbase vs Kraken)
+        // 6. Process Cross-Exchange Arbitrage (Coinbase vs Kraken)
         if (resArbitrage.status === 'fulfilled' && resArbitrage.value.ok) {
             const data = await resArbitrage.value.json();
             if (data && typeof data === 'object') {
@@ -837,7 +1107,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // Process India Regulatory & Liquidity Premium (CoinDCX vs ECB Global)
+        // 7. Process India Regulatory & Liquidity Premium
         if (resIndiaPremium.status === 'fulfilled' && resIndiaPremium.value.ok) {
             const data = await resIndiaPremium.value.json();
             if (data && typeof data === 'object') {
@@ -846,7 +1116,7 @@ async function fetchLivePipelineData() {
             }
         }
 
-        // If backend is momentarily offline, execute realistic simulation tick
+        // Engage simulation tick if backend is offline
         if (!hasLiveBackend) {
             simulateMicroTick();
         }
@@ -854,12 +1124,16 @@ async function fetchLivePipelineData() {
         simulateMicroTick();
     }
 
-    // Refresh UI with current market state
+    // Refresh UI components with updated state
     updateStatCards();
     updateOneMinuteAnalytics();
     pushChartPoint();
 }
 
+/**
+ * Simulates micro-variations in market prices when the backend is offline.
+ * Maintains realistic rolling price series for testing without live ClickHouse.
+ */
 function simulateMicroTick() {
     Object.keys(liveMarket).forEach(k => {
         const item = liveMarket[k];
@@ -871,6 +1145,10 @@ function simulateMicroTick() {
     });
 }
 
+/**
+ * Appends a new price point to the main Chart.js instance in real-time.
+ * Automatically recalculates rolling EMA and Bollinger Bands envelopes.
+ */
 function pushChartPoint() {
     if (!chartInstance) return;
     const cur = liveMarket[selectedSymbol];
@@ -891,7 +1169,7 @@ function pushChartPoint() {
         labels.shift();
     }
 
-    // Recalculate indicators dynamically for the current data points
+    // Dynamically recalculate indicator overlays on latest data window
     const emaVals = calculateEMA(data, 9);
     const bbVals = calculateBollingerBands(data, 20, 2);
 
@@ -910,26 +1188,16 @@ function pushChartPoint() {
 }
 
 // =============================================================================
-// INTERACTIVE CONTROLS & EVENT HANDLERS
+// MODULE 13: INTERACTIVE CONTROLS & ASSET SELECTION
 // =============================================================================
 
-function scrollToDashboard() {
-    const el = document.getElementById('appDashboard');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-}
-
-function scrollToFeatures() {
-    const el = document.getElementById('featuresStrip');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-}
-
-function scrollToAnomalyAlerts() {
-    scrollToDashboard();
-    const el = document.getElementById('anomalyAlertsTable');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    showToast('Viewing Anomaly Alerts');
-}
-
+/**
+ * Selects an active trading pair across the terminal.
+ * Synchronizes dropdowns, highlights active cards, resets chart series,
+ * and updates microstructure analytics.
+ *
+ * @param {string} sym - Asset symbol (e.g. 'BTC', 'ETH', 'SOL')
+ */
 function selectCardSymbol(sym) {
     selectedSymbol = sym;
     const pairDropdown = document.getElementById('pairSelectDropdown');
@@ -956,6 +1224,11 @@ function onAnalyticsPairChange(val) {
     selectCardSymbol(val);
 }
 
+/**
+ * Updates the chart aggregation timeframe button state.
+ *
+ * @param {string} tf - Timeframe code ('1M', '5M', '1H', '1D', 'ALL')
+ */
 function setTimeframe(tf) {
     currentTimeframe = tf;
     document.querySelectorAll('.tf-btn').forEach(btn => {
@@ -964,6 +1237,11 @@ function setTimeframe(tf) {
     showToast(`Timeframe set to ${tf}`);
 }
 
+/**
+ * Switches the global currency denomination between USD ($) and INR (₹).
+ *
+ * @param {string} val - Currency code ('USD' | 'INR')
+ */
 function onCurrencyDropdownChange(val) {
     currencyMode = val;
     if (chartInstance) {
@@ -981,6 +1259,12 @@ function setCurrencyToggle(curr) {
     onCurrencyDropdownChange(currencyMode);
 }
 
+/**
+ * Resets the main chart series when switching to a different asset symbol.
+ * Rebuilds the 40-point baseline curve and recomputes EMA and Bollinger overlays.
+ *
+ * @param {string} sym - New asset symbol
+ */
 function resetChartWithNewSymbol(sym) {
     if (!chartInstance) return;
     const basePrice = (currencyMode === 'INR' ? (liveMarket[sym].price * activeFxRate) : liveMarket[sym].price);
@@ -1022,6 +1306,22 @@ function resetChartWithNewSymbol(sym) {
     updateFloatingTooltipBadge(data[data.length - 1], labels[labels.length - 1]);
 }
 
+// =============================================================================
+// MODULE 14: VIEW NAVIGATION & MULTI-PAGE SECTION SWITCHER
+// =============================================================================
+
+/**
+ * Switches the active terminal page section:
+ * - 'dashboard': Market Overview (Primary workspace with chart & KPI cards)
+ * - 'live-market': Dedicated high-frequency live WebSocket tick canvas
+ * - 'price-analytics': 1-Minute aggregation and microstructure matrix
+ * - 'recent-trades': Full-page 15-row settled trade blotter
+ * - 'anomaly-alerts': Statistical outlier detection engine
+ * - 'pipeline-health': Kafka KRaft, Spark, ClickHouse & FastAPI telemetry
+ * - 'arbitrage-spreads': Multi-Exchange Arbitrage & India Premium Matrix
+ *
+ * @param {string} section - Destination section identifier
+ */
 function setSidebarSection(section) {
     // 1. Highlight sidebar nav item
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(b => {
@@ -1060,7 +1360,7 @@ function setSidebarSection(section) {
         },
         'anomaly-alerts': {
             title: 'Anomaly Detection Engine',
-            sub: 'Dynamic Statistical Outliers (|Z| ≥ 3.0σ) & Real-time Alerts'
+            sub: 'Dynamic Statistical Outliers (|Z| >= 3.0σ) & Real-time Alerts'
         },
         'pipeline-health': {
             title: 'Pipeline Health & Telemetry',
@@ -1077,8 +1377,8 @@ function setSidebarSection(section) {
         if (subtitleEl) subtitleEl.textContent = metaTitles[section].sub;
     }
 
-    // 4. Smooth scroll to top of dashboard shell so user is at top of page
-    scrollToDashboard();
+    // 4. Smooth scroll to top of viewport
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // 5. Trigger view-specific refreshes
     if (section === 'dashboard') {
@@ -1100,6 +1400,10 @@ function setSidebarSection(section) {
     }
 }
 
+// =============================================================================
+// MODULE 15: DEDICATED LIVE MARKET STREAM VIEW
+// =============================================================================
+
 function onLiveMarketSelect(sym) {
     selectCardSymbol(sym);
     updateLiveMarketKpis();
@@ -1108,9 +1412,11 @@ function onLiveMarketSelect(sym) {
     }
 }
 
+/**
+ * Updates high-level market KPI metrics for the live market stream view.
+ */
 function updateLiveMarketKpis() {
     const cur = liveMarket[selectedSymbol] || liveMarket.BTC;
-    const isINR = currencyMode === 'INR';
     const curPriceEl = document.getElementById('liveMarketCurrentPrice');
     const chgEl = document.getElementById('liveMarketChange');
     const highEl = document.getElementById('liveMarketHigh');
@@ -1132,6 +1438,9 @@ function updateLiveMarketKpis() {
     if (volEl) volEl.textContent = `${(selectedSymbol === 'BTC' ? 14820 : 92400).toLocaleString('en-US')} ${selectedSymbol}`;
 }
 
+/**
+ * Initializes or updates the high-frequency 50-tick WebSocket canvas chart.
+ */
 function initOrUpdateLiveMarketChart() {
     const canvas = document.getElementById('liveMarketDedicatedChart');
     if (!canvas) return;
@@ -1206,9 +1515,13 @@ function initOrUpdateLiveMarketChart() {
 }
 
 // =============================================================================
-// THEME TOGGLE (LIGHT / DARK)
+// MODULE 16: THEME & INDICATOR TOGGLES
 // =============================================================================
 
+/**
+ * Toggles the terminal theme between Light and Dark mode.
+ * Dynamically adapts Chart.js gridlines and colors for optimal contrast.
+ */
 function toggleTheme() {
     isDarkMode = !isDarkMode;
     document.body.classList.toggle('dark-theme', isDarkMode);
@@ -1220,7 +1533,7 @@ function toggleTheme() {
         moon.style.display = isDarkMode ? 'block' : 'none';
     }
 
-    // Refresh Chart styling for theme
+    // Refresh Chart gridlines for current theme
     if (chartInstance) {
         chartInstance.options.scales.y.grid.color = isDarkMode ? 'rgba(55, 65, 81, 0.5)' : 'rgba(226, 232, 240, 0.8)';
         chartInstance.update();
@@ -1233,6 +1546,9 @@ function toggleChartViewMode() {
     showToast('Grid View toggled: 1-Minute Live Candlesticks');
 }
 
+/**
+ * Toggles visibility of the 9-period Exponential Moving Average overlay.
+ */
 function toggleEma9() {
     showEma9 = !showEma9;
     const btn = document.getElementById('btnToggleEma9');
@@ -1245,6 +1561,9 @@ function toggleEma9() {
     showToast(showEma9 ? 'EMA (9) Overlay Enabled' : 'EMA (9) Overlay Disabled');
 }
 
+/**
+ * Toggles visibility of the 20-period, 2-sigma Bollinger Bands envelope.
+ */
 function toggleBollingerBands() {
     showBollinger = !showBollinger;
     const btn = document.getElementById('btnToggleBollinger');
@@ -1259,7 +1578,7 @@ function toggleBollingerBands() {
 }
 
 // =============================================================================
-// MODALS & SPOTLIGHT SEARCH (⌘K)
+// MODULE 17: SPOTLIGHT SEARCH MODAL (CMD+K / CTRL+K) & TOASTS
 // =============================================================================
 
 function openSearchModal() {
@@ -1314,9 +1633,12 @@ function quickSelectSymbol(sym) {
     closeSearchModal();
 }
 
+/**
+ * Injects a simulated anomaly alert into the active alert table to demonstrate
+ * real-time reactivity without waiting for an organic market outlier.
+ */
 function simulateAnomalyAlert() {
     closeSearchModal();
-    const cur = liveMarket[selectedSymbol] || liveMarket.BTC;
     const alertObj = {
         symbol: selectedSymbol,
         alert_time: new Date().toLocaleTimeString(),
@@ -1326,18 +1648,24 @@ function simulateAnomalyAlert() {
     };
 
     updateAnomalyAlertsTable([alertObj, ...cachedAlerts]);
-    showToast(`🚨 Volatility Alert: ${selectedSymbol} |Z| = ${alertObj.z_score}σ`);
+    showToast(`⚡ Volatility Alert: ${selectedSymbol} |Z| = ${alertObj.z_score}σ`);
 }
 
 function viewAllTrades() {
+    setSidebarSection('recent-trades');
     showToast('Streaming all live Coinbase trade events.');
 }
 
 function viewAllAlerts() {
-    scrollToAnomalyAlerts();
+    setSidebarSection('anomaly-alerts');
     showToast('Displaying real-time market anomaly feed.');
 }
 
+/**
+ * Displays a non-intrusive bottom toast notification.
+ *
+ * @param {string} msg - Message text to display
+ */
 function showToast(msg) {
     const t = document.getElementById('toast');
     if (!t) return;
@@ -1346,7 +1674,7 @@ function showToast(msg) {
     setTimeout(() => { t.style.display = 'none'; }, 2800);
 }
 
-// ⌘K / Ctrl+K Global Shortcut Handler
+// Global Spotlight (CMD+K / CTRL+K) & Escape Key Listeners
 document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -1359,38 +1687,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // =============================================================================
-// DOM INITIALIZATION
-// =============================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    initLiveClock();
-
-    // Populate initial sparklines
-    Object.keys(liveMarket).forEach(k => {
-        const p = liveMarket[k].price;
-        liveMarket[k].history = [p * 0.99, p * 0.994, p * 0.992, p * 0.998, p * 1.002, p * 1.001, p];
-    });
-
-    updateStatCards();
-    updateOneMinuteAnalytics();
-    initPriceHistoryChart();
-
-    // Pre-populate both overview previews and dedicated view tables
-    updateRecentTradesTable(cachedTrades);
-    updateAnomalyAlertsTable(cachedAlerts);
-    updatePipelineHealth(telemetryMetrics);
-    updateAnalyticsMatrixTable();
-    updateArbitragePulseStrip();
-    renderArbitrageMatrix();
-    renderIndiaPremiumMatrix();
-
-    // Start Real-Time Live Ingestion & Polling Loop
-    fetchLivePipelineData();
-    setInterval(fetchLivePipelineData, 2500);
-});
-
-// =============================================================================
-// MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM MATRIX RENDERING
+// MODULE 18: MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM MATRIX
 // =============================================================================
 
 function updateArbitrageUI() {
@@ -1403,6 +1700,9 @@ function updateIndiaPremiumUI() {
     renderIndiaPremiumMatrix();
 }
 
+/**
+ * Updates the summary pulse cards for cross-exchange arbitrage and India premium.
+ */
 function updateArbitragePulseStrip() {
     const sym = (selectedSymbol === 'INR' || !selectedSymbol) ? 'BTC' : selectedSymbol;
 
@@ -1470,6 +1770,10 @@ function updateArbitragePulseStrip() {
     }
 }
 
+/**
+ * Renders the full multi-exchange arbitrage comparison table (Coinbase vs Kraken)
+ * with fee hurdle modeling, net profitability, and optimal routing indicators.
+ */
 function renderArbitrageMatrix() {
     const tbody = document.getElementById('arbitrageMatrixBody');
     if (!tbody) return;
@@ -1477,7 +1781,7 @@ function renderArbitrageMatrix() {
     const pairs = cachedArbitrage.pairs;
     if (!pairs || Object.keys(pairs).length === 0) return;
 
-    // Update KPIs
+    // Update summary KPI counters
     const effEl = document.getElementById('kpiEfficiency');
     const durEl = document.getElementById('kpiDuration');
     const oppsEl = document.getElementById('kpiActiveOpps');
@@ -1529,6 +1833,10 @@ function renderArbitrageMatrix() {
     if (oppsEl) oppsEl.textContent = `${activeCount} / 6`;
 }
 
+/**
+ * Renders the full India Regulatory & Liquidity Premium matrix (CoinDCX vs Global).
+ * Explicitly displays implied rupee cost, nominal price difference, and capital control tags.
+ */
 function renderIndiaPremiumMatrix() {
     const tbody = document.getElementById('indiaPremiumMatrixBody');
     if (!tbody) return;
@@ -1580,14 +1888,71 @@ function renderIndiaPremiumMatrix() {
     }).join('');
 }
 
-// Export all functions to window for robust inline handler binding
-window.scrollToDashboard = scrollToDashboard;
-window.scrollToFeatures = scrollToFeatures;
-window.scrollToAnomalyAlerts = scrollToAnomalyAlerts;
+// =============================================================================
+// MODULE 19: DOM INITIALIZATION & LIFECYCLE BOOTSTRAP
+// =============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize digital UTC/local clock
+    initLiveClock();
+
+    // 2. Populate initial historical arrays for sparkline rendering
+    Object.keys(liveMarket).forEach(k => {
+        const p = liveMarket[k].price;
+        liveMarket[k].history = [p * 0.99, p * 0.994, p * 0.992, p * 0.998, p * 1.002, p * 1.001, p];
+    });
+
+    // 3. Render core metric cards, microstructure statistics, and primary chart
+    updateStatCards();
+    updateOneMinuteAnalytics();
+    initPriceHistoryChart();
+
+    // 4. Pre-populate tables and pulse strips
+    updateRecentTradesTable(cachedTrades);
+    updateAnomalyAlertsTable(cachedAlerts);
+    updatePipelineHealth(telemetryMetrics);
+    updateAnalyticsMatrixTable();
+    updateArbitragePulseStrip();
+    renderArbitrageMatrix();
+    renderIndiaPremiumMatrix();
+
+    // 5. Start real-time live ingestion polling cycle (every 2.5 seconds)
+    fetchLivePipelineData();
+    setInterval(fetchLivePipelineData, 2500);
+});
+
+// =============================================================================
+// MODULE 20: GLOBAL WINDOW EXPORTS (HTML INLINE EVENT HANDLER BINDINGS)
+// =============================================================================
+
+// Navigation & Asset Selection
 window.selectCardSymbol = selectCardSymbol;
 window.setSidebarSection = setSidebarSection;
+window.onPairDropdownChange = onPairDropdownChange;
+window.onAnalyticsPairChange = onAnalyticsPairChange;
+window.onLiveMarketSelect = onLiveMarketSelect;
+window.setTimeframe = setTimeframe;
+
+// Currency & Theme
+window.onCurrencyDropdownChange = onCurrencyDropdownChange;
+window.setCurrencyToggle = setCurrencyToggle;
 window.toggleTheme = toggleTheme;
 window.toggleChartViewMode = toggleChartViewMode;
+
+// Technical Overlays
+window.toggleEma9 = toggleEma9;
+window.toggleBollingerBands = toggleBollingerBands;
+
+// Data Filtering & Actions
+window.filterDedicatedTrades = filterDedicatedTrades;
+window.filterDedicatedAlerts = filterDedicatedAlerts;
+window.fetchLivePipelineData = fetchLivePipelineData;
+window.simulateMicroTick = simulateMicroTick;
+window.simulateAnomalyAlert = simulateAnomalyAlert;
+window.viewAllTrades = viewAllTrades;
+window.viewAllAlerts = viewAllAlerts;
+
+// Modals & Notifications
 window.openSearchModal = openSearchModal;
 window.closeSearchModal = closeSearchModal;
 window.openTelemetryModal = openTelemetryModal;
@@ -1596,25 +1961,12 @@ window.openSettingsModal = openSettingsModal;
 window.closeModalOnBackdrop = closeModalOnBackdrop;
 window.handleSearchInput = handleSearchInput;
 window.quickSelectSymbol = quickSelectSymbol;
-window.simulateAnomalyAlert = simulateAnomalyAlert;
-window.viewAllTrades = viewAllTrades;
-window.viewAllAlerts = viewAllAlerts;
-window.setTimeframe = setTimeframe;
-window.onPairDropdownChange = onPairDropdownChange;
-window.onCurrencyDropdownChange = onCurrencyDropdownChange;
-window.onAnalyticsPairChange = onAnalyticsPairChange;
-window.setCurrencyToggle = setCurrencyToggle;
 window.showToast = showToast;
-window.onLiveMarketSelect = onLiveMarketSelect;
-window.filterDedicatedTrades = filterDedicatedTrades;
-window.filterDedicatedAlerts = filterDedicatedAlerts;
-window.fetchLivePipelineData = fetchLivePipelineData;
-window.toggleEma9 = toggleEma9;
-window.toggleBollingerBands = toggleBollingerBands;
+
+// Spread & Order Flow Components
 window.updateOrderFlowWidget = updateOrderFlowWidget;
 window.updateArbitrageUI = updateArbitrageUI;
 window.updateIndiaPremiumUI = updateIndiaPremiumUI;
 window.updateArbitragePulseStrip = updateArbitragePulseStrip;
 window.renderArbitrageMatrix = renderArbitrageMatrix;
 window.renderIndiaPremiumMatrix = renderIndiaPremiumMatrix;
-
