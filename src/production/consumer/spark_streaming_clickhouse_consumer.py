@@ -44,9 +44,9 @@ CLICKHOUSE_DATABASE = "stocks"
 CLICKHOUSE_RAW_TABLE = "ticks"
 CLICKHOUSE_AGG_TABLE = "ticks_1m_agg"
 
-# Streaming settings
-RAW_BATCH_INTERVAL = "3 seconds"
-AGG_BATCH_INTERVAL = "10 seconds"
+# Streaming settings (optimized for sub-second / fast reflection)
+RAW_BATCH_INTERVAL = "1 second"
+AGG_BATCH_INTERVAL = "5 seconds"
 
 # Watermark: how long to wait for late-arriving data before finalizing windows.
 # Events arriving more than 30 seconds late (by event-time) will be dropped.
@@ -58,6 +58,14 @@ WINDOW_DURATION = "1 minute"
 # Checkpoint directories (one per stream for independent fault tolerance)
 CHECKPOINT_DIR_RAW = os.environ.get("CHECKPOINT_DIR_RAW", "checkpoints/raw_ticks")
 CHECKPOINT_DIR_AGG = os.environ.get("CHECKPOINT_DIR_AGG", "checkpoints/windowed_agg")
+RESET_CHECKPOINTS = os.environ.get("RESET_CHECKPOINTS", "false").lower() in ("true", "1", "yes")
+
+if RESET_CHECKPOINTS:
+    import shutil
+    print("[Spark] RESET_CHECKPOINTS is active. Purging checkpoint directories...")
+    shutil.rmtree(CHECKPOINT_DIR_RAW, ignore_errors=True)
+    shutil.rmtree(CHECKPOINT_DIR_AGG, ignore_errors=True)
+
 
 # =============================================================================
 # CREATE SPARK SESSION
@@ -71,6 +79,9 @@ spark = (
         "com.clickhouse:clickhouse-jdbc:0.6.0,"
         "org.apache.httpcomponents.client5:httpclient5:5.3.1",
     )
+    .config("spark.sql.shuffle.partitions", "2")
+    .config("spark.default.parallelism", "2")
+    .config("spark.streaming.ui.retainedBatches", "5")
     .getOrCreate()
 )
 
@@ -108,7 +119,7 @@ stock_schema = StructType([
     StructField("price_inr", DoubleType(), True),
     StructField("exchange_rate", DoubleType(), True),
     StructField("rate_timestamp", StringType(), True),
-    StructField("volume", LongType(), True),
+    StructField("volume", DoubleType(), True),
     StructField("timestamp", StringType(), True),
 ])
 
@@ -164,6 +175,7 @@ CLICKHOUSE_PROPERTIES = {
     "user": "default",
     "password": "",
     "isolationLevel": "NONE",
+    "batchsize": "10000",
     "createTableOptions": "ENGINE = MergeTree() ORDER BY (symbol, timestamp)",
 }
 
@@ -172,6 +184,7 @@ AGG_PROPERTIES = {
     "user": "default",
     "password": "",
     "isolationLevel": "NONE",
+    "batchsize": "10000",
     "createTableOptions": "ENGINE = ReplacingMergeTree() ORDER BY (symbol, window_start)",
 }
 
@@ -180,37 +193,32 @@ AGG_PROPERTIES = {
 # =============================================================================
 
 def write_raw_to_clickhouse(batch_df, batch_id):
-    """Write raw tick data to ClickHouse with explicit column ordering."""
+    """Write raw tick data to ClickHouse directly without redundant count() passes."""
     try:
-        row_count = batch_df.count()
-
-        if row_count > 0:
-            print(f"\n[Raw Batch {batch_id}] Writing {row_count} ticks to {CLICKHOUSE_RAW_TABLE}...")
-            (
-                batch_df.select(
-                    col("symbol").cast(StringType()),
-                    col("price").cast(DoubleType()),
-                    col("volume").cast(DoubleType()),
-                    col("timestamp").cast(TimestampType()),
-                    col("price_usd").cast(DoubleType()),
-                    col("price_inr").cast(DoubleType()),
-                    col("exchange_rate").cast(DoubleType()),
-                    col("rate_timestamp").cast(TimestampType()),
-                    col("event_id").cast(StringType()),
-                )
-                .write
-                .jdbc(
-                    url=CLICKHOUSE_JDBC_URL,
-                    table=CLICKHOUSE_RAW_TABLE,
-                    mode="append",
-                    properties=CLICKHOUSE_PROPERTIES,
-                )
+        if batch_df.isEmpty():
+            return
+        (
+            batch_df.select(
+                col("symbol").cast(StringType()),
+                col("price").cast(DoubleType()),
+                coalesce(col("volume").cast(DoubleType()), lit(0.0)).alias("volume"),
+                col("timestamp").cast(TimestampType()),
+                col("price_usd").cast(DoubleType()),
+                col("price_inr").cast(DoubleType()),
+                col("exchange_rate").cast(DoubleType()),
+                col("rate_timestamp").cast(TimestampType()),
+                col("event_id").cast(StringType()),
             )
-            print(f"[Raw Batch {batch_id}] Done!")
-        else:
-            print(f"\n[Raw Batch {batch_id}] No new data")
+            .write
+            .jdbc(
+                url=CLICKHOUSE_JDBC_URL,
+                table=CLICKHOUSE_RAW_TABLE,
+                mode="append",
+                properties=CLICKHOUSE_PROPERTIES,
+            )
+        )
     except Exception as e:
-        print(f"\n[Raw Batch {batch_id}] Warning/Error writing to ClickHouse: {e}")
+        print(f"[Raw Batch {batch_id}] Warning/Error writing to ClickHouse: {e}")
 
 
 raw_query = (
@@ -266,7 +274,7 @@ df_windowed = (
         col("avg_price").cast(DoubleType()),
         col("min_price").cast(DoubleType()),
         col("max_price").cast(DoubleType()),
-        col("total_volume").cast(LongType()),
+        coalesce(col("total_volume").cast(DoubleType()), lit(0.0)).alias("total_volume"),
         col("tick_count").cast(IntegerType()),
         col("vwap_inr").cast(DoubleType()),
         col("avg_price_inr").cast(DoubleType()),
@@ -278,45 +286,38 @@ df_windowed = (
 
 def write_agg_to_clickhouse(batch_df, batch_id):
     """
-    Write windowed aggregations to ClickHouse with explicit 13-column ordering.
-
+    Write windowed aggregations to ClickHouse directly without redundant count() passes.
     ClickHouse ReplacingMergeTree deduplicates on (symbol, window_start).
-    Query with FINAL for instantaneous deduplicated views.
     """
     try:
-        row_count = batch_df.count()
-
-        if row_count > 0:
-            print(f"\n[Agg Batch {batch_id}] Writing {row_count} window aggregations to {CLICKHOUSE_AGG_TABLE}...")
-            (
-                batch_df.select(
-                    col("symbol").cast(StringType()),
-                    col("window_start").cast(TimestampType()),
-                    col("window_end").cast(TimestampType()),
-                    col("vwap").cast(DoubleType()),
-                    col("avg_price").cast(DoubleType()),
-                    col("min_price").cast(DoubleType()),
-                    col("max_price").cast(DoubleType()),
-                    col("total_volume").cast(LongType()),
-                    col("tick_count").cast(IntegerType()),
-                    col("vwap_inr").cast(DoubleType()),
-                    col("avg_price_inr").cast(DoubleType()),
-                    col("min_price_inr").cast(DoubleType()),
-                    col("max_price_inr").cast(DoubleType()),
-                )
-                .write
-                .jdbc(
-                    url=CLICKHOUSE_JDBC_URL,
-                    table=CLICKHOUSE_AGG_TABLE,
-                    mode="append",
-                    properties=AGG_PROPERTIES,
-                )
+        if batch_df.isEmpty():
+            return
+        (
+            batch_df.select(
+                col("symbol").cast(StringType()),
+                col("window_start").cast(TimestampType()),
+                col("window_end").cast(TimestampType()),
+                col("vwap").cast(DoubleType()),
+                col("avg_price").cast(DoubleType()),
+                col("min_price").cast(DoubleType()),
+                col("max_price").cast(DoubleType()),
+                coalesce(col("total_volume").cast(DoubleType()), lit(0.0)).alias("total_volume"),
+                col("tick_count").cast(IntegerType()),
+                col("vwap_inr").cast(DoubleType()),
+                col("avg_price_inr").cast(DoubleType()),
+                col("min_price_inr").cast(DoubleType()),
+                col("max_price_inr").cast(DoubleType()),
             )
-            print(f"[Agg Batch {batch_id}] Done!")
-        else:
-            print(f"\n[Agg Batch {batch_id}] No updated windows")
+            .write
+            .jdbc(
+                url=CLICKHOUSE_JDBC_URL,
+                table=CLICKHOUSE_AGG_TABLE,
+                mode="append",
+                properties=AGG_PROPERTIES,
+            )
+        )
     except Exception as e:
-        print(f"\n[Agg Batch {batch_id}] Warning/Error writing aggregations: {e}")
+        print(f"[Agg Batch {batch_id}] Warning/Error writing aggregations: {e}")
 
 
 agg_query = (
@@ -342,5 +343,17 @@ print("  SELECT * FROM stocks.ticks_1m_agg FINAL ORDER BY window_start DESC LIMI
 print()
 
 # awaitAnyTermination() blocks until any of the streaming queries terminates.
-# If one fails, this will raise the exception so the process exits.
-spark.streams.awaitAnyTermination()
+# If one fails, this will check for checkpoint corruption, clean if necessary, and exit cleanly.
+try:
+    spark.streams.awaitAnyTermination()
+except Exception as e:
+    err_msg = str(e)
+    if ("FileNotFoundException" in err_msg or "AssertionError" in err_msg or "partitions" in err_msg) and ("checkpoint" in err_msg or ".delta" in err_msg or "state" in err_msg or "partition" in err_msg):
+        import shutil
+        print(f"\n[Spark Alert] Detected corrupt/incompatible checkpoint state: {err_msg}")
+        print("[Spark Alert] Auto-purging corrupted checkpoint directories for recovery on next run...")
+        shutil.rmtree(CHECKPOINT_DIR_RAW, ignore_errors=True)
+        shutil.rmtree(CHECKPOINT_DIR_AGG, ignore_errors=True)
+        print("[Spark Alert] Checkpoints purged. Please restart the consumer.")
+    raise
+

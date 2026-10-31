@@ -6,10 +6,14 @@ WORKDIR /app
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
-    clickhouse-connect
+    clickhouse-connect \
+    websockets
 
 # Copy dashboard files
 COPY web_app.py ./
+COPY cursor_tracker.py ./
+COPY multi_exchange_service.py ./
+COPY webhook_dispatcher.py ./
 COPY static/ static/
 
 CMD ["python", "web_app.py"]

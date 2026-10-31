@@ -7,6 +7,7 @@ services:
   kafka:
     image: apache/kafka:3.7.0
     container_name: kafka
+    restart: unless-stopped
     ports:
       - "9092:9092"
     environment:
@@ -43,6 +44,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.1
     container_name: clickhouse
+    restart: unless-stopped
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -77,6 +79,7 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      PYTHONUNBUFFERED: "1"
     profiles:
       - crypto
     deploy:
@@ -87,28 +90,6 @@ services:
   # =============================================================================
   # CONSUMERS (production - writes to ClickHouse)
   # =============================================================================
-
-  # Spark micro-batch consumer -> ClickHouse
-  spark-microbatch:
-    build:
-      context: ./src/production/consumer
-      dockerfile: Dockerfile.spark-consumer
-    container_name: spark-microbatch
-    depends_on:
-      kafka:
-        condition: service_healthy
-      clickhouse:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: "8123"
-    profiles:
-      - spark_microbatch
-    deploy:
-      resources:
-        limits:
-          memory: 2000m
 
   # Spark streaming consumer (windowed aggregations) -> ClickHouse
   spark-streaming:
@@ -178,12 +159,14 @@ services:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       DASHBOARD_MODE: ${DASHBOARD_MODE:-crypto}
+      PYTHONUNBUFFERED: "1"
     ports:
       - "8502:8502"
     volumes:
       - ./src/production/dashboard/static:/app/static:ro
       - ./src/production/dashboard/web_app.py:/app/web_app.py:ro
       - ./src/production/dashboard/cursor_tracker.py:/app/cursor_tracker.py:ro
+      - ./src/production/dashboard/multi_exchange_service.py:/app/multi_exchange_service.py:ro
       - ./src/production/dashboard/webhook_dispatcher.py:/app/webhook_dispatcher.py:ro
     profiles:
       - web
@@ -220,6 +203,7 @@ services:
       ANOMALY_MIN_SAMPLES: "10"      # min prior observations before scoring
       ANOMALY_WINDOW_SIZE: "30"      # rolling return history length per symbol
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./src/production/consumer/anomaly_detector.py:/app/anomaly_detector.py:ro
       - ./src/production/consumer/webhook_dispatcher.py:/app/webhook_dispatcher.py:ro

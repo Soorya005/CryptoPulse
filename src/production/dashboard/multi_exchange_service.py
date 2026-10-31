@@ -79,10 +79,10 @@ class MultiExchangeService:
         self.coinbase_market: dict[str, dict] = {}
         self.round_trip_fee_pct = 0.35  # 0.15% maker + 0.20% taker round-trip cost
         self.arbitrage_stats = {
-            "ticks_analyzed": 14280,
-            "opportunities_detected": 42,
-            "avg_duration_sec": 1.4,
-            "efficiency_pct": 99.71,
+            "ticks_analyzed": 0,
+            "opportunities_detected": 0,
+            "avg_duration_sec": 0.0,
+            "efficiency_pct": 100.0,
         }
         self.historical_spreads: list[dict] = []
         self._running = False
@@ -95,8 +95,7 @@ class MultiExchangeService:
         self._running = True
         self._bg_tasks.append(asyncio.create_task(self._kraken_ws_loop()))
         self._bg_tasks.append(asyncio.create_task(self._coindcx_poll_loop()))
-        self._bg_tasks.append(asyncio.create_task(self._coinbase_poll_loop()))
-        print("[MultiExchangeService] Started Kraken WS, CoinDCX & Coinbase ingestion.")
+        print("[MultiExchangeService] Started Kraken WS & CoinDCX ingestion.")
 
     async def stop(self):
         """Stop background tasks."""
@@ -111,7 +110,7 @@ class MultiExchangeService:
 
         while self._running:
             try:
-                async with websockets.connect("wss://ws.kraken.com/v2", ping_interval=20, timeout=10) as ws:
+                async with websockets.connect("wss://ws.kraken.com/v2", ping_interval=20, open_timeout=10) as ws:
                     sub_msg = {
                         "method": "subscribe",
                         "params": {
@@ -201,35 +200,7 @@ class MultiExchangeService:
 
             await asyncio.sleep(4)
 
-    async def _coinbase_poll_loop(self):
-        """Poll Coinbase public exchange ticker every 3 seconds for independent clock & real-time spot prices."""
-        symbols = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LTC"]
-        while self._running:
-            try:
-                loop = asyncio.get_event_loop()
-                for sym in symbols:
-                    try:
-                        req = urllib.request.Request(
-                            f"https://api.exchange.coinbase.com/products/{sym}-USD/ticker",
-                            headers={"User-Agent": "CryptoPulse/1.0"},
-                        )
-                        res = await loop.run_in_executor(None, lambda r=req: urllib.request.urlopen(r, timeout=2.5).read())
-                        d = json.loads(res.decode("utf-8"))
-                        if "price" in d:
-                            self.coinbase_market[sym] = {
-                                "price": float(d["price"]),
-                                "bid": float(d.get("bid", d["price"])),
-                                "ask": float(d.get("ask", d["price"])),
-                                "time": d.get("time") or datetime.now(timezone.utc).isoformat(),
-                            }
-                    except Exception:
-                        pass
-                    await asyncio.sleep(0.2)
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                pass
-            await asyncio.sleep(2.5)
+
 
     def compute_arbitrage(self, live_market: dict) -> dict:
         """
@@ -244,33 +215,24 @@ class MultiExchangeService:
         active_opp_count = 0
 
         for sym in ["BTC", "ETH", "SOL", "XRP", "DOGE", "LTC"]:
-            cb_entry = self.coinbase_market.get(sym, {})
             kr_data = self.kraken_market.get(sym, {})
+            cb_price = float(live_market.get(sym, {}).get("price", 0.0))
+            kr_price = float(kr_data.get("price", 0.0))
 
-            # Select most current Coinbase price: ClickHouse tick or Coinbase exchange ticker
-            cb_price = live_market.get(sym, {}).get("price", 0.0)
-            cb_rest_price = cb_entry.get("price", 0.0)
-            if cb_price <= 0 or (cb_rest_price > 0 and abs(cb_price - cb_rest_price) > cb_rest_price * 0.05):
-                cb_price = cb_rest_price if cb_rest_price > 0 else cb_price
+            # Skip calculation if either venue has no verified price (never fabricate fake spreads)
+            if cb_price <= 0 or kr_price <= 0:
+                continue
 
-            kr_price = kr_data.get("price", 0.0)
-            if kr_price <= 0 and cb_price > 0:
-                kr_price = cb_price * 0.9998
-            if cb_price <= 0 and kr_price > 0:
-                cb_price = kr_price * 1.0002
-
-            # Calculate event-time clock skew (delta t) between independent venue clocks
-            cb_time_str = cb_entry.get("time")
+            cb_time_str = live_market.get(sym, {}).get("timestamp")
             kr_time_str = kr_data.get("timestamp")
-            clock_skew_ms = 118
+            clock_skew_ms = 0
             if cb_time_str and kr_time_str:
                 try:
                     t_cb = datetime.fromisoformat(cb_time_str.replace("Z", "+00:00"))
                     t_kr = datetime.fromisoformat(kr_time_str.replace("Z", "+00:00"))
-                    skew = abs((t_cb - t_kr).total_seconds() * 1000)
-                    clock_skew_ms = max(18, min(850, int(skew)))
+                    clock_skew_ms = max(0, int(abs((t_cb - t_kr).total_seconds() * 1000)))
                 except Exception:
-                    clock_skew_ms = 118
+                    clock_skew_ms = 0
 
             abs_spread = abs(cb_price - kr_price)
             base = min(cb_price, kr_price)
@@ -338,7 +300,7 @@ class MultiExchangeService:
         """
         results = {}
         now = datetime.now(timezone.utc).isoformat()
-        rate = fx_rate if fx_rate > 0 else 88.19
+        rate = fx_rate if fx_rate > 0 else 94.95
 
         for sym in ["BTC", "ETH", "SOL", "XRP", "DOGE", "LTC"]:
             cb_price_usd = live_market.get(sym, {}).get("price", 0.0)

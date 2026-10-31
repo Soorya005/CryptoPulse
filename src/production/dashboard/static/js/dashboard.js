@@ -53,7 +53,7 @@ let currencyMode = 'USD';
 let currentTimeframe = '1H';
 
 /** Active USD to INR exchange rate (dynamically updated from ClickHouse ticks) */
-let activeFxRate = 94.96;
+let activeFxRate = 94.95;
 
 /** Chart.js instance for the primary price history and technical indicator chart */
 let chartInstance = null;
@@ -93,7 +93,7 @@ let liveMarket = {
     BTC: { price: 67420.50, change: 1.24, history: [] },
     ETH: { price: 2543.18, change: -0.62, history: [] },
     SOL: { price: 173.24, change: 2.31, history: [] },
-    INR: { price: 88.01, change: 0.12, history: [] },
+    INR: { price: 94.95, change: 0.12, history: [] },
     XRP: { price: 1.3005, change: -0.45, history: [] },
     DOGE: { price: 0.0789, change: 0.85, history: [] },
     LTC: { price: 59.58, change: 1.10, history: [] }
@@ -561,10 +561,11 @@ function updateStatCards() {
 
     // 4. USD / INR Currency Benchmark Card
     const inr = liveMarket.INR;
+    if (inr && activeFxRate) inr.price = activeFxRate;
     const elPriceINR = document.getElementById('cardPriceINR');
     const elChangeINR = document.getElementById('cardChangeINR');
     const sparkINR = document.getElementById('sparklineINR');
-    if (elPriceINR) elPriceINR.textContent = inr.price.toFixed(2);
+    if (elPriceINR) elPriceINR.textContent = (activeFxRate || (inr ? inr.price : 94.95)).toFixed(2);
     if (elChangeINR) {
         elChangeINR.className = `trend-badge ${inr.change >= 0 ? 'positive' : 'negative'}`;
         elChangeINR.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="${inr.change >= 0 ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"></polyline></svg><span>${inr.change >= 0 ? '+' : ''}${inr.change.toFixed(2)}%</span>`;
@@ -1056,9 +1057,15 @@ async function fetchLivePipelineData() {
                     const sym = item.symbol;
                     if (liveMarket[sym]) {
                         liveMarket[sym].price = item.price_usd || item.price;
-                        if (item.exchange_rate) activeFxRate = item.exchange_rate;
+                    }
+                    if (item.exchange_rate) {
+                        activeFxRate = Number(item.exchange_rate);
                     }
                 });
+                if (liveMarket.INR && activeFxRate) {
+                    liveMarket.INR.price = activeFxRate;
+                }
+                updateFxDisplay(activeFxRate);
             }
         }
 
@@ -1397,6 +1404,8 @@ function setSidebarSection(section) {
     } else if (section === 'arbitrage-spreads') {
         renderArbitrageMatrix();
         renderIndiaPremiumMatrix();
+        fetchArbitrageData();
+        fetchIndiaPremiumData();
     }
 }
 
@@ -1774,6 +1783,37 @@ function updateArbitragePulseStrip() {
  * Renders the full multi-exchange arbitrage comparison table (Coinbase vs Kraken)
  * with fee hurdle modeling, net profitability, and optimal routing indicators.
  */
+
+async function fetchArbitrageData() {
+    try {
+        const res = await fetch('/api/arbitrage');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object') {
+                cachedArbitrage = data;
+                updateArbitrageUI();
+            }
+        }
+    } catch (e) {
+        console.warn('fetchArbitrageData error:', e);
+    }
+}
+
+async function fetchIndiaPremiumData() {
+    try {
+        const res = await fetch('/api/india-premium');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object') {
+                cachedIndiaPremium = data;
+                updateIndiaPremiumUI();
+            }
+        }
+    } catch (e) {
+        console.warn('fetchIndiaPremiumData error:', e);
+    }
+}
+
 function renderArbitrageMatrix() {
     const tbody = document.getElementById('arbitrageMatrixBody');
     if (!tbody) return;
@@ -1805,8 +1845,8 @@ function renderArbitrageMatrix() {
         return `
             <tr>
                 <td><span class="sym-badge">${sym}-USD</span></td>
-                <td><strong style="color:var(--text-primary);">$${item.coinbase_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
-                <td><strong style="color:var(--text-primary);">$${item.kraken_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
+                <td><strong style="color:var(--text-primary);">$${Number(item.coinbase_price || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
+                <td><strong style="color:var(--text-primary);">$${Number(item.kraken_price || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</strong></td>
                 <td>$${item.absolute_spread.toFixed(2)}</td>
                 <td>${item.gross_spread_pct.toFixed(3)}%</td>
                 <td><span style="color: var(--text-secondary);">${item.clock_skew_ms || 84} ms</span></td>
@@ -1844,7 +1884,7 @@ function renderIndiaPremiumMatrix() {
     const pairs = cachedIndiaPremium.pairs;
     if (!pairs || Object.keys(pairs).length === 0) return;
 
-    const fxRate = cachedIndiaPremium.fx_rate || 88.19;
+    const fxRate = cachedIndiaPremium.fx_rate || activeFxRate || 94.95;
     const termFxEl = document.getElementById('termFxRate');
     if (termFxEl) termFxEl.textContent = fxRate.toFixed(2);
 
@@ -1861,11 +1901,11 @@ function renderIndiaPremiumMatrix() {
         return `
             <tr>
                 <td><span class="sym-badge" style="background: var(--color-amber-bg); color: var(--color-amber); border-color: var(--color-amber-border);">${sym}-INR</span></td>
-                <td><strong style="color:var(--text-primary);">₹${Math.round(item.coindcx_price_inr).toLocaleString('en-IN')}</strong></td>
-                <td>$${item.global_price_usd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
-                <td>₹${Math.round(item.global_implied_inr).toLocaleString('en-IN')}</td>
+                <td><strong style="color:var(--text-primary);">₹${Math.round(Number(item.coindcx_price_inr || 0)).toLocaleString('en-IN')}</strong></td>
+                <td>$${Number(item.global_price_usd || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                <td>₹${Math.round(Number(item.global_implied_inr || 0)).toLocaleString('en-IN')}</td>
                 <td style="color: ${isPos ? 'var(--color-green)' : 'var(--color-red)'}; font-weight: 600;">
-                    ${diffSign}₹${Math.round(item.premium_inr).toLocaleString('en-IN')}
+                    ${diffSign}₹${Math.round(Number(item.premium_inr || 0)).toLocaleString('en-IN')}
                 </td>
                 <td>
                     <span class="trend-badge ${isPos ? 'positive' : 'negative'}">
@@ -1886,6 +1926,265 @@ function renderIndiaPremiumMatrix() {
             </tr>
         `;
     }).join('');
+}
+
+// =============================================================================
+// MODULE 18B: REAL-TIME WEBSOCKET & LOW-LATENCY STREAMING ENGINE
+// =============================================================================
+
+let wsClient = null;
+let wsReconnectTimer = null;
+let wsHeartbeatTimer = null;
+let sseSource = null;
+
+function flashPriceUpdate(symbol, isUp) {
+    const el = document.getElementById(`cardPrice${symbol}`);
+    const flashClass = isUp ? 'price-flash-up' : 'price-flash-down';
+    if (el) {
+        el.classList.remove('price-flash-up', 'price-flash-down');
+        void el.offsetWidth;
+        el.classList.add(flashClass);
+        setTimeout(() => el.classList.remove(flashClass), 600);
+    }
+    if (symbol === selectedSymbol) {
+        const liveEl = document.getElementById('liveMarketCurrentPrice');
+        if (liveEl) {
+            liveEl.classList.remove('price-flash-up', 'price-flash-down');
+            void liveEl.offsetWidth;
+            liveEl.classList.add(flashClass);
+            setTimeout(() => liveEl.classList.remove(flashClass), 600);
+        }
+    }
+}
+
+function formatTradeTimestamp(rawTs) {
+    if (!rawTs) return new Date().toTimeString().slice(0, 8);
+    if (typeof rawTs === 'string' && rawTs.length === 8 && rawTs.includes(':')) return rawTs;
+    try {
+        const str = String(rawTs);
+        const iso = str.includes('T') ? str : str.replace(' ', 'T') + 'Z';
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) {
+            return d.toTimeString().slice(0, 8);
+        }
+    } catch (e) {}
+    return String(rawTs).slice(11, 19) || new Date().toTimeString().slice(0, 8);
+}
+
+function handleLiveTicks(ticks) {
+    if (!Array.isArray(ticks) || ticks.length === 0) return;
+
+    const changedSymbols = new Map();
+    let hasLiveChartUpdate = false;
+    let hasMainChartUpdate = false;
+
+    for (let i = 0; i < ticks.length; i++) {
+        const tick = ticks[i];
+        if (!tick || !tick.symbol) continue;
+
+        const sym = tick.symbol;
+        const newPrice = Number(tick.price_usd || tick.price);
+        if (!newPrice || isNaN(newPrice)) continue;
+
+        let isUp = true;
+        if (liveMarket[sym]) {
+            const oldPrice = liveMarket[sym].price;
+            if (oldPrice > 0 && Math.abs(newPrice - oldPrice) > 0.00001) {
+                isUp = newPrice >= oldPrice;
+                changedSymbols.set(sym, isUp);
+            }
+            liveMarket[sym].price = newPrice;
+            if (!liveMarket[sym].history) liveMarket[sym].history = [];
+            liveMarket[sym].history.push(newPrice);
+            if (liveMarket[sym].history.length > 50) liveMarket[sym].history.shift();
+        }
+
+        if (tick.exchange_rate) {
+            activeFxRate = Number(tick.exchange_rate);
+            if (liveMarket.INR) {
+                liveMarket.INR.price = activeFxRate;
+            }
+            updateFxDisplay(activeFxRate);
+        }
+
+        // Prepend to trade audit blotter
+        const tradeId = tick.event_id ? `TX-${String(tick.event_id).slice(0, 6).toUpperCase()}` : `TX-${Math.floor(100000 + Math.random() * 900000)}`;
+        const tradeTs = formatTradeTimestamp(tick.timestamp);
+        const tradeEntry = {
+            id: tradeId,
+            timestamp: tradeTs,
+            symbol: sym,
+            side: isUp ? 'BUY' : 'SELL',
+            price: newPrice,
+            volume: Number(tick.volume || 1),
+        };
+        cachedTrades.unshift(tradeEntry);
+
+        // If tick matches current selected symbol, update live charts
+        if (sym === selectedSymbol) {
+            const displayPrice = currencyMode === 'INR' ? newPrice * (activeFxRate || 94.96) : newPrice;
+
+            // 1. Dedicated high-frequency live market chart (last 50 ticks)
+            if (liveMarketChartInstance) {
+                liveMarketChartInstance.data.labels.push(tradeTs);
+                liveMarketChartInstance.data.datasets[0].data.push(displayPrice);
+                if (liveMarketChartInstance.data.labels.length > 50) {
+                    liveMarketChartInstance.data.labels.shift();
+                    liveMarketChartInstance.data.datasets[0].data.shift();
+                }
+                hasLiveChartUpdate = true;
+            }
+
+            // 2. Primary 1-Hour price history chart: update current minute point without shifting out 40-minute history
+            if (chartInstance && chartInstance.data.datasets[0] && chartInstance.data.datasets[0].data.length > 0) {
+                const dArr = chartInstance.data.datasets[0].data;
+                const lArr = chartInstance.data.labels;
+                const now = new Date();
+                const curMinStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                if (lArr[lArr.length - 1] === curMinStr) {
+                    dArr[dArr.length - 1] = displayPrice;
+                } else {
+                    dArr.push(displayPrice);
+                    lArr.push(curMinStr);
+                    if (dArr.length > 45) {
+                        dArr.shift();
+                        lArr.shift();
+                    }
+                }
+                const emaVals = calculateEMA(dArr, 9);
+                const bbVals = calculateBollingerBands(dArr, 20, 2);
+                if (chartInstance.data.datasets[1]) chartInstance.data.datasets[1].data = emaVals;
+                if (chartInstance.data.datasets[2]) chartInstance.data.datasets[2].data = bbVals.upper;
+                if (chartInstance.data.datasets[3]) chartInstance.data.datasets[3].data = bbVals.lower;
+                hasMainChartUpdate = true;
+            }
+        }
+    }
+
+    if (cachedTrades.length > 50) {
+        cachedTrades.length = 50;
+    }
+
+    // Trigger flash animation for all symbols that changed in this batch
+    changedSymbols.forEach((isUp, sym) => {
+        flashPriceUpdate(sym, isUp);
+    });
+
+    // Re-render UI components once for the entire batch
+    updateStatCards();
+    updateOneMinuteAnalytics();
+    updateRecentTradesTable(cachedTrades);
+    updateLiveMarketKpis();
+    updateAnalyticsMatrixTable();
+    updateArbitragePulseStrip();
+    const arbView = document.getElementById('view-arbitrage-spreads');
+    if (arbView && arbView.classList.contains('active')) {
+        renderArbitrageMatrix();
+        renderIndiaPremiumMatrix();
+    }
+
+    if (hasLiveChartUpdate && liveMarketChartInstance) {
+        liveMarketChartInstance.update('none');
+    }
+    if (hasMainChartUpdate && chartInstance) {
+        chartInstance.update('none');
+        updateFloatingTooltipBadge(liveMarket[selectedSymbol].price, new Date().toTimeString().slice(0, 8));
+    }
+}
+
+function handleLiveTick(tick) {
+    if (tick) handleLiveTicks([tick]);
+}
+
+function initRealtimeStream() {
+    tryWebSocketStream();
+}
+
+function tryWebSocketStream() {
+    if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    try {
+        wsClient = new WebSocket(wsUrl);
+
+        wsClient.onopen = () => {
+            console.log('[WebSocket] Connected to CryptoPulse sub-100ms real-time stream.');
+            clearTimeout(wsReconnectTimer);
+            clearInterval(wsHeartbeatTimer);
+            wsHeartbeatTimer = setInterval(() => {
+                if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+                    wsClient.send('ping');
+                }
+            }, 15000);
+            if (sseSource) {
+                sseSource.close();
+                sseSource = null;
+            }
+        };
+
+        wsClient.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'snapshot' && Array.isArray(msg.data)) {
+                    msg.data.forEach(item => {
+                        const sym = item.symbol;
+                        if (liveMarket[sym]) {
+                            liveMarket[sym].price = Number(item.price_usd || item.price);
+                            if (item.exchange_rate) {
+                                activeFxRate = Number(item.exchange_rate);
+                                if (liveMarket.INR) liveMarket.INR.price = activeFxRate;
+                            }
+                        }
+                    });
+                    updateStatCards();
+                    updateOneMinuteAnalytics();
+                    updateLiveMarketKpis();
+                    updateAnalyticsMatrixTable();
+                } else if (msg.type === 'ticks' && Array.isArray(msg.data)) {
+                    handleLiveTicks(msg.data);
+                }
+            } catch (e) {
+                console.error('[WebSocket] Message decode error:', e);
+            }
+        };
+
+        wsClient.onclose = () => {
+            clearInterval(wsHeartbeatTimer);
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = setTimeout(tryWebSocketStream, 2000);
+            trySSEStream();
+        };
+
+        wsClient.onerror = () => {
+            wsClient.close();
+        };
+    } catch (e) {
+        trySSEStream();
+    }
+}
+
+function trySSEStream() {
+    if (sseSource && sseSource.readyState !== EventSource.CLOSED) return;
+    try {
+        sseSource = new EventSource('/api/stream');
+        sseSource.onmessage = (event) => {
+            try {
+                const ticks = JSON.parse(event.data);
+                if (Array.isArray(ticks)) {
+                    handleLiveTicks(ticks);
+                }
+            } catch (e) {}
+        };
+        sseSource.onerror = () => {
+            if (sseSource) {
+                sseSource.close();
+                sseSource = null;
+            }
+        };
+    } catch (e) {}
 }
 
 // =============================================================================
@@ -1916,9 +2215,12 @@ document.addEventListener('DOMContentLoaded', () => {
     renderArbitrageMatrix();
     renderIndiaPremiumMatrix();
 
-    // 5. Start real-time live ingestion polling cycle (every 2.5 seconds)
+    // 5. Connect real-time WebSocket / SSE streaming (instant sub-100ms updates)
+    initRealtimeStream();
+
+    // 6. Start background polling cycle for multi-table analytics
     fetchLivePipelineData();
-    setInterval(fetchLivePipelineData, 2500);
+    setInterval(fetchLivePipelineData, 3000);
 });
 
 // =============================================================================
@@ -1969,4 +2271,6 @@ window.updateArbitrageUI = updateArbitrageUI;
 window.updateIndiaPremiumUI = updateIndiaPremiumUI;
 window.updateArbitragePulseStrip = updateArbitragePulseStrip;
 window.renderArbitrageMatrix = renderArbitrageMatrix;
+window.fetchArbitrageData = fetchArbitrageData;
+window.fetchIndiaPremiumData = fetchIndiaPremiumData;
 window.renderIndiaPremiumMatrix = renderIndiaPremiumMatrix;

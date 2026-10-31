@@ -42,7 +42,7 @@ class SSECursorTracker:
                         lower(hex(cityHash64(symbol, toString(price), toString(volume), toString(timestamp))))
                     ) AS effective_event_id
                 FROM stocks.ticks
-                WHERE 1=1 {symbol_filter}
+                WHERE timestamp >= now() - INTERVAL 10 MINUTE {symbol_filter}
             )
             SELECT
                 timestamp, symbol, price, volume,
@@ -53,6 +53,28 @@ class SSECursorTracker:
             LIMIT {self.batch_size}
             """
             rows = ch_client.query(prime_query).result_rows
+            if not rows:
+                fallback_query = f"""
+                WITH enriched AS (
+                    SELECT
+                        timestamp, symbol, price, volume,
+                        price_usd, price_inr, exchange_rate, rate_timestamp,
+                        COALESCE(
+                            NULLIF(event_id, ''),
+                            lower(hex(cityHash64(symbol, toString(price), toString(volume), toString(timestamp))))
+                        ) AS effective_event_id
+                    FROM stocks.ticks
+                    WHERE 1=1 {symbol_filter}
+                )
+                SELECT
+                    timestamp, symbol, price, volume,
+                    price_usd, price_inr, exchange_rate, rate_timestamp,
+                    effective_event_id
+                FROM enriched
+                ORDER BY timestamp DESC, effective_event_id DESC
+                LIMIT {self.batch_size}
+                """
+                rows = ch_client.query(fallback_query).result_rows
             self.is_primed = True
             if not rows:
                 return []
@@ -90,7 +112,7 @@ class SSECursorTracker:
                         lower(hex(cityHash64(symbol, toString(price), toString(volume), toString(timestamp))))
                     ) AS effective_event_id
                 FROM stocks.ticks
-                WHERE 1=1 {symbol_filter}
+                WHERE timestamp >= toDateTime('{cur_ts}') {symbol_filter}
             )
             SELECT
                 timestamp, symbol, price, volume,

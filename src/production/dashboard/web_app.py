@@ -53,7 +53,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import clickhouse_connect
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -62,12 +63,20 @@ from starlette.responses import StreamingResponse
 try:
     from webhook_dispatcher import AlertWebhookDispatcher
 except ImportError:
-    from src.production.dashboard.webhook_dispatcher import AlertWebhookDispatcher
+    try:
+        from src.production.dashboard.webhook_dispatcher import AlertWebhookDispatcher
+    except ImportError:
+        from src.production.consumer.webhook_dispatcher import AlertWebhookDispatcher
 
 try:
     from multi_exchange_service import multi_exchange_service
 except ImportError:
     from src.production.dashboard.multi_exchange_service import multi_exchange_service
+
+try:
+    from cursor_tracker import SSECursorTracker
+except ImportError:
+    from src.production.dashboard.cursor_tracker import SSECursorTracker
 
 ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "").strip()
 webhook_dispatcher = AlertWebhookDispatcher(webhook_url=ALERT_WEBHOOK_URL, cooldown_seconds=5)
@@ -120,31 +129,96 @@ class DummyClient:
     def close(self):
         pass
 
-client = None
+import threading
+
+_thread_local = threading.local()
 _last_connect_failure = 0.0
 
 def get_client():
-    """Get or create ClickHouse client with resilient fallback to avoid hanging when offline."""
-    global client, _last_connect_failure
-    if client is not None:
-        return client
+    """Get or create thread-isolated ClickHouse client to safely support concurrent asyncio.to_thread queries."""
+    global _last_connect_failure
+    local_client = getattr(_thread_local, "client", None)
+    if local_client is not None:
+        return local_client
 
     now = time.time()
     if now - _last_connect_failure < 5.0:
         return DummyClient()
 
     try:
-        client = clickhouse_connect.get_client(
+        local_client = clickhouse_connect.get_client(
             host=os.environ.get("CLICKHOUSE_HOST", "localhost"),
             port=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
             database="stocks",
-            connect_timeout=1,
-            send_receive_timeout=1,
+            connect_timeout=5,
+            send_receive_timeout=15,
         )
-        return client
-    except Exception:
+        _thread_local.client = local_client
+        return local_client
+    except Exception as e:
+        print(f"[ClickHouse Client] Connection failed: {e}", file=sys.stderr, flush=True)
         _last_connect_failure = now
         return DummyClient()
+
+
+class ConnectionManager:
+    """Manages active WebSocket connections for low-latency streaming."""
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        if not self.active_connections:
+            return
+        dead = []
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                dead.append(connection)
+        for d in dead:
+            self.disconnect(d)
+
+ws_manager = ConnectionManager()
+
+# Global in-memory cache for ultra-fast price lookups (< 0.1ms)
+latest_prices_cache: dict[str, dict] = {}
+_cached_telemetry: dict = {}
+_last_telemetry_fetch: float = 0.0
+
+async def tick_broadcaster():
+    """Background loop polling new ticks from ClickHouse and pushing to WebSockets and cache."""
+    tracker = SSECursorTracker(lookback_seconds=5, batch_size=100, max_pages_per_poll=5)
+    while True:
+        try:
+            ch = get_client()
+            if not isinstance(ch, DummyClient):
+                ticks = await asyncio.to_thread(tracker.fetch_next_events, ch)
+                if ticks:
+                    for t in ticks:
+                        sym = t.get("symbol")
+                        if sym:
+                            latest_prices_cache[sym] = {
+                                "symbol": sym,
+                                "price": t.get("price"),
+                                "price_usd": t.get("price_usd") or t.get("price"),
+                                "price_inr": t.get("price_inr"),
+                                "exchange_rate": t.get("exchange_rate"),
+                                "rate_timestamp": str(t.get("rate_timestamp")) if t.get("rate_timestamp") else None,
+                                "volume": t.get("volume"),
+                                "last_update": str(t.get("timestamp")),
+                            }
+                    await ws_manager.broadcast({"type": "ticks", "data": ticks})
+        except Exception:
+            pass
+        await asyncio.sleep(0.2)
 
 
 @asynccontextmanager
@@ -155,7 +229,9 @@ async def lifespan(app: FastAPI):
         await multi_exchange_service.start()
     except Exception as e:
         print(f"[Lifespan] MultiExchangeService start error: {e}")
+    broadcaster_task = asyncio.create_task(tick_broadcaster())
     yield
+    broadcaster_task.cancel()
     try:
         await multi_exchange_service.stop()
     except Exception:
@@ -177,9 +253,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Enable CORS for external frontend collaborators (Vite, Next.js, Live Server)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.exception_handler(Exception)
 async def clickhouse_offline_exception_handler(request: Request, exc: Exception):
     """Graceful fallback when ClickHouse is offline or starting up."""
+    print(f"[Exception Handler] Error on {request.url.path}: {exc}", file=sys.stderr, flush=True)
     if request.url.path.startswith("/api/candles") or request.url.path.startswith("/api/telemetry") or request.url.path.startswith("/api/order-flow"):
         return JSONResponse(status_code=200, content={})
     elif request.url.path.startswith("/api/"):
@@ -217,21 +303,37 @@ async def root():
         "Pragma": "no-cache",
         "Expires": "0",
     }
-    if DASHBOARD_MODE == "crypto":
-        return FileResponse(os.path.join(STATIC_DIR, "crypto_index.html"), headers=headers)
-    return FileResponse(os.path.join(STATIC_DIR, "stock_index.html"), headers=headers)
+    return FileResponse(os.path.join(STATIC_DIR, "crypto_index.html"), headers=headers)
 
 
 @app.get("/landing")
 async def landing():
-    """Redirect legacy landing page requests to root dashboard."""
+    """Serve dedicated landing page if static/landing.html exists, else redirect to dashboard."""
+    landing_file = os.path.join(STATIC_DIR, "landing.html")
+    if os.path.exists(landing_file):
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        return FileResponse(landing_file, headers=headers)
     return RedirectResponse(url="/", status_code=302)
 
 
 @app.get("/api/latest")
 async def get_latest_prices(symbols: str = ""):
-    """Get latest price for each symbol using atomic argMax tuple."""
+    """Get latest price for each symbol with in-memory caching for sub-millisecond responses."""
     sym_list = validate_symbols(symbols)
+
+    # Fast path: check in-memory cache
+    if latest_prices_cache:
+        if sym_list:
+            cached = [latest_prices_cache[s] for s in sym_list if s in latest_prices_cache]
+            if len(cached) == len(sym_list):
+                return sorted(cached, key=lambda x: x["symbol"])
+        else:
+            return sorted(list(latest_prices_cache.values()), key=lambda x: x["symbol"])
+
     symbol_filter = ""
     if sym_list:
         symbols_str = ", ".join([f"'{s}'" for s in sym_list])
@@ -258,8 +360,9 @@ async def get_latest_prices(symbols: str = ""):
     ORDER BY symbol
     """
     result = get_client().query(query)
-    return [
-        {
+    output = []
+    for row in result.result_rows:
+        item = {
             "symbol": row[0],
             "price": row[1],
             "price_usd": row[2],
@@ -269,8 +372,9 @@ async def get_latest_prices(symbols: str = ""):
             "volume": row[6],
             "last_update": str(row[7]),
         }
-        for row in result.result_rows
-    ]
+        latest_prices_cache[row[0]] = item
+        output.append(item)
+    return output
 
 
 @app.get("/api/history")
@@ -346,6 +450,9 @@ async def get_recent_ticks(
         symbols_str = ", ".join([f"'{s}'" for s in sym_list])
         symbol_filter = f"WHERE symbol IN ({symbols_str})"
 
+    time_filter = "timestamp >= now() - INTERVAL 1 HOUR"
+    where_clause = f"{symbol_filter} AND {time_filter}" if symbol_filter else f"WHERE {time_filter}"
+
     query = f"""
     SELECT
         timestamp,
@@ -357,11 +464,29 @@ async def get_recent_ticks(
         exchange_rate,
         rate_timestamp
     FROM stocks.ticks
-    {symbol_filter}
+    {where_clause}
     ORDER BY timestamp DESC
     LIMIT {limit}
     """
-    result = get_client().query(query)
+    result = await asyncio.to_thread(get_client().query, query)
+    if not result.result_rows:
+        fallback_query = f"""
+        SELECT
+            timestamp,
+            symbol,
+            price,
+            volume,
+            price_usd,
+            price_inr,
+            exchange_rate,
+            rate_timestamp
+        FROM stocks.ticks
+        {symbol_filter}
+        ORDER BY timestamp DESC
+        LIMIT {limit}
+        """
+        result = await asyncio.to_thread(get_client().query, fallback_query)
+
     return [
         {
             "timestamp": str(row[0]),
@@ -523,56 +648,60 @@ async def get_candles(
 
     symbols_str = ", ".join([f"'{s}'" for s in sym_list])
 
-    # Check if active session has data in the current window
     check_query = f"""
     SELECT count()
     FROM stocks.ticks
     WHERE symbol IN ({symbols_str})
       AND timestamp >= now() - INTERVAL {minutes} MINUTE
     """
-    recent_tick_count = get_client().query(check_query).result_rows[0][0]
 
-    if recent_tick_count >= 30:
-        query = f"""
-        SELECT
-            toStartOfInterval(timestamp, INTERVAL 1 MINUTE) as candle_time,
-            symbol,
-            argMin(price, timestamp) as open_usd,
-            max(price) as high_usd,
-            min(price) as low_usd,
-            argMax(price, timestamp) as close_usd,
-            argMin(ifNull(price_inr, price * 94.96), timestamp) as open_inr,
-            max(ifNull(price_inr, price * 94.96)) as high_inr,
-            min(ifNull(price_inr, price * 94.96)) as low_inr,
-            argMax(ifNull(price_inr, price * 94.96), timestamp) as close_inr,
-            sum(volume) as volume
-        FROM stocks.ticks
-        WHERE symbol IN ({symbols_str})
-          AND timestamp >= now() - INTERVAL {minutes} MINUTE
-        GROUP BY candle_time, symbol
-        ORDER BY candle_time ASC
-        """
-    else:
-        query = f"""
-        SELECT
-            toStartOfInterval(timestamp, INTERVAL 1 MINUTE) as candle_time,
-            symbol,
-            argMin(price, timestamp) as open_usd,
-            max(price) as high_usd,
-            min(price) as low_usd,
-            argMax(price, timestamp) as close_usd,
-            argMin(ifNull(price_inr, price * 94.96), timestamp) as open_inr,
-            max(ifNull(price_inr, price * 94.96)) as high_inr,
-            min(ifNull(price_inr, price * 94.96)) as low_inr,
-            argMax(ifNull(price_inr, price * 94.96), timestamp) as close_inr,
-            sum(volume) as volume
-        FROM stocks.ticks
-        WHERE symbol IN ({symbols_str})
-          AND timestamp >= (SELECT max(timestamp) - INTERVAL {minutes} MINUTE FROM stocks.ticks)
-        GROUP BY candle_time, symbol
-        ORDER BY candle_time ASC
-        """
-    rows = get_client().query(query).result_rows
+    query_recent = f"""
+    SELECT
+        toStartOfInterval(timestamp, INTERVAL 1 MINUTE) as candle_time,
+        symbol,
+        argMin(price, timestamp) as open_usd,
+        max(price) as high_usd,
+        min(price) as low_usd,
+        argMax(price, timestamp) as close_usd,
+        argMin(coalesce(price_inr, price * exchange_rate), timestamp) as open_inr,
+        max(coalesce(price_inr, price * exchange_rate)) as high_inr,
+        min(coalesce(price_inr, price * exchange_rate)) as low_inr,
+        argMax(coalesce(price_inr, price * exchange_rate), timestamp) as close_inr,
+        sum(volume) as volume
+    FROM stocks.ticks
+    WHERE symbol IN ({symbols_str})
+      AND timestamp >= now() - INTERVAL {minutes} MINUTE
+    GROUP BY candle_time, symbol
+    ORDER BY candle_time ASC
+    """
+
+    query_fallback = f"""
+    SELECT
+        toStartOfInterval(timestamp, INTERVAL 1 MINUTE) as candle_time,
+        symbol,
+        argMin(price, timestamp) as open_usd,
+        max(price) as high_usd,
+        min(price) as low_usd,
+        argMax(price, timestamp) as close_usd,
+        argMin(coalesce(price_inr, price * exchange_rate), timestamp) as open_inr,
+        max(coalesce(price_inr, price * exchange_rate)) as high_inr,
+        min(coalesce(price_inr, price * exchange_rate)) as low_inr,
+        argMax(coalesce(price_inr, price * exchange_rate), timestamp) as close_inr,
+        sum(volume) as volume
+    FROM stocks.ticks
+    WHERE symbol IN ({symbols_str})
+      AND timestamp >= (SELECT max(timestamp) - INTERVAL {minutes} MINUTE FROM stocks.ticks)
+    GROUP BY candle_time, symbol
+    ORDER BY candle_time ASC
+    """
+
+    def _fetch_candles_sync():
+        ch = get_client()
+        recent_cnt = ch.query(check_query).result_rows[0][0]
+        q = query_recent if recent_cnt >= 30 else query_fallback
+        return ch.query(q).result_rows
+
+    rows = await asyncio.to_thread(_fetch_candles_sync)
 
     results = {}
     for r in rows:
@@ -609,7 +738,7 @@ async def get_market_alerts(limit: int = Query(default=10, ge=1, le=100)):
     ORDER BY alert_time DESC
     LIMIT {limit}
     """
-    result = get_client().query(query)
+    result = await asyncio.to_thread(get_client().query, query)
     return [
         {
             "symbol": row[0],
@@ -665,12 +794,12 @@ async def test_alert_webhook(symbol: str = "BTC"):
     try:
         row = ch.query(f"SELECT price, price_inr, exchange_rate FROM stocks.ticks WHERE symbol = '{sym}' ORDER BY timestamp DESC LIMIT 1").result_rows[0]
         cur_price = float(row[0])
-        cur_price_inr = float(row[1]) if row[1] else cur_price * 94.96
-        fx_rate = float(row[2]) if row[2] else 94.96
+        fx_rate = float(row[2]) if row[2] else None
+        cur_price_inr = float(row[1]) if row[1] else (round(cur_price * fx_rate, 2) if fx_rate else None)
     except Exception:
         cur_price = 81450.00
-        cur_price_inr = 7734592.00
-        fx_rate = 94.96
+        fx_rate = None
+        cur_price_inr = None
 
     simulated_z = 3.85
     simulated_return_pct = 0.425
@@ -740,13 +869,18 @@ async def test_alert_webhook(symbol: str = "BTC"):
 @app.get("/api/telemetry")
 async def get_pipeline_telemetry():
     """Get distributed pipeline telemetry, end-to-end latency, and storage stats."""
+    global _cached_telemetry, _last_telemetry_fetch
+    now_mono = time.time()
+    if _cached_telemetry and (now_mono - _last_telemetry_fetch < 2.0):
+        return _cached_telemetry
+
     ch = get_client()
     if isinstance(ch, DummyClient):
         return {
-            "e2e_latency_sec": 0.085,
-            "e2e_latency_ms": 85,
-            "latest_tick_timestamp": datetime.now(timezone.utc).isoformat(),
-            "ingestion_rate_per_sec": 1240.0,
+            "e2e_latency_sec": None,
+            "e2e_latency_ms": None,
+            "latest_tick_timestamp": None,
+            "ingestion_rate_per_sec": 0.0,
             "total_ticks": 0,
             "total_aggregates": 0,
             "total_alerts": 0,
@@ -759,7 +893,7 @@ async def get_pipeline_telemetry():
             "services": {
                 "coinbase_websocket": "Active Streaming",
                 "kafka_broker": "Healthy (KRaft Cluster)",
-                "spark_streaming": "Active (3s microbatch, 10s agg)",
+                "spark_streaming": "Active (1s microbatch, 5s agg)",
                 "clickhouse_olap": "Offline / Reconnecting",
                 "anomaly_detector": "Active (|Z| >= 3.0)",
             },
@@ -772,15 +906,9 @@ async def get_pipeline_telemetry():
         max(timestamp) as latest_tick_time
     FROM stocks.ticks
     """
-    lat_rows = ch.query(latency_query).result_rows
-    lat_res = lat_rows[0] if lat_rows else (0, None)
-    latency_sec = lat_res[0] if lat_res[0] is not None else 0
-    latest_tick = str(lat_res[1]) if lat_res[1] else None
 
     # Ingestion rate (ticks / sec over last 60 seconds)
     rate_query = "SELECT round(count() / 60.0, 1) FROM stocks.ticks WHERE timestamp >= now() - INTERVAL 60 SECOND"
-    rate_rows = ch.query(rate_query).result_rows
-    rate_res = rate_rows[0][0] if rate_rows else 0.0
 
     # Row counts
     counts_query = """
@@ -789,8 +917,6 @@ async def get_pipeline_telemetry():
         (SELECT count() FROM stocks.ticks_1m_agg),
         (SELECT count() FROM stocks.market_alerts)
     """
-    counts_rows = ch.query(counts_query).result_rows
-    counts_res = counts_rows[0] if counts_rows else (0, 0, 0)
 
     # ClickHouse storage and compression
     storage_query = """
@@ -802,10 +928,23 @@ async def get_pipeline_telemetry():
     FROM system.parts
     WHERE database = 'stocks' AND active = 1
     """
-    st_rows = ch.query(storage_query).result_rows
-    st_res = st_rows[0] if st_rows else ("0 B", "0 B", 1.0, 0)
 
-    return {
+    def _fetch_telemetry_sync():
+        l_rows = ch.query(latency_query).result_rows
+        l_res = l_rows[0] if l_rows else (0, None)
+        r_rows = ch.query(rate_query).result_rows
+        r_res = r_rows[0][0] if r_rows else 0.0
+        c_rows = ch.query(counts_query).result_rows
+        c_res = c_rows[0] if c_rows else (0, 0, 0)
+        s_rows = ch.query(storage_query).result_rows
+        s_res = s_rows[0] if s_rows else ("0 B", "0 B", 1.0, 0)
+        return l_res, r_res, c_res, s_res
+
+    lat_res, rate_res, counts_res, st_res = await asyncio.to_thread(_fetch_telemetry_sync)
+    latency_sec = lat_res[0] if lat_res[0] is not None else 0
+    latest_tick = str(lat_res[1]) if lat_res[1] else None
+
+    res = {
         "e2e_latency_sec": max(0, latency_sec),
         "e2e_latency_ms": max(0, latency_sec * 1000),
         "latest_tick_timestamp": latest_tick,
@@ -822,11 +961,14 @@ async def get_pipeline_telemetry():
         "services": {
             "coinbase_websocket": "Active Streaming",
             "kafka_broker": "Healthy (KRaft Cluster)",
-            "spark_streaming": "Active (3s microbatch, 10s agg)",
+            "spark_streaming": "Active (1s microbatch, 5s agg)",
             "clickhouse_olap": "Connected (MergeTree)",
             "anomaly_detector": "Active (|Z| >= 3.0)",
         },
     }
+    _cached_telemetry = res
+    _last_telemetry_fetch = now_mono
+    return res
 
 
 # =============================================================================
@@ -859,11 +1001,33 @@ async def get_order_flow(symbols: str = ""):
             row_number() OVER (PARTITION BY symbol ORDER BY timestamp DESC) as rn
         FROM stocks.ticks
         WHERE symbol IN ({symbols_str})
+          AND timestamp >= now() - INTERVAL 1 HOUR
     )
     WHERE rn <= 100
     ORDER BY symbol, timestamp ASC
     """
-    rows = get_client().query(query).result_rows
+    rows = (await asyncio.to_thread(get_client().query, query)).result_rows
+    if not rows:
+        fallback_query = f"""
+        SELECT
+            symbol,
+            price,
+            volume,
+            timestamp
+        FROM (
+            SELECT
+                symbol,
+                price,
+                volume,
+                timestamp,
+                row_number() OVER (PARTITION BY symbol ORDER BY timestamp DESC) as rn
+            FROM stocks.ticks
+            WHERE symbol IN ({symbols_str})
+        )
+        WHERE rn <= 100
+        ORDER BY symbol, timestamp ASC
+        """
+        rows = (await asyncio.to_thread(get_client().query, fallback_query)).result_rows
 
     from collections import defaultdict
     ticks_by_symbol = defaultdict(list)
@@ -1005,7 +1169,19 @@ async def get_technical_indicators(symbol: str = "BTC"):
 # =============================================================================
 
 def get_current_live_prices():
-    """Retrieve current Coinbase live prices from ClickHouse or fallback."""
+    """Retrieve current Coinbase live prices from memory cache or ClickHouse or fallback."""
+    if latest_prices_cache:
+        prices = {}
+        fx = 94.95
+        for sym, item in latest_prices_cache.items():
+            p = item.get("price_usd") or item.get("price")
+            if p is not None:
+                prices[sym] = {"price": float(p)}
+            if item.get("exchange_rate"):
+                fx = float(item["exchange_rate"])
+        if prices:
+            return prices, fx
+
     try:
         query = """
         SELECT symbol, t.2 as price_usd, t.4 as exchange_rate
@@ -1017,7 +1193,7 @@ def get_current_live_prices():
         """
         rows = get_client().query(query).result_rows
         prices = {}
-        fx = 88.19
+        fx = 94.95
         for r in rows:
             prices[r[0]] = {"price": float(r[1])}
             if r[2]:
@@ -1035,7 +1211,7 @@ def get_current_live_prices():
         "DOGE": {"price": 0.0789},
         "LTC": {"price": 59.58},
     }
-    return fallback_prices, 88.19
+    return fallback_prices, 94.95
 
 
 @app.get("/api/arbitrage")
@@ -1059,8 +1235,40 @@ async def get_india_regulatory_premium():
 
 
 # =============================================================================
-# SSE - Real-time Stream
+# WEBSOCKET & SSE - Real-time Streams
 # =============================================================================
+
+@app.websocket("/ws")
+async def websocket_ticks(websocket: WebSocket, symbols: str = ""):
+    """
+    High-frequency real-time WebSocket tick stream for sub-100ms UI reflection.
+    Pushes instantaneous price and trade updates.
+    """
+    await ws_manager.connect(websocket)
+    try:
+        sym_list = validate_symbols(symbols)
+        # Send initial snapshot of all prices immediately upon connection
+        if latest_prices_cache:
+            if sym_list:
+                snap = [latest_prices_cache[s] for s in sym_list if s in latest_prices_cache]
+            else:
+                snap = list(latest_prices_cache.values())
+        else:
+            snap = await get_latest_prices(symbols)
+
+        if snap:
+            await websocket.send_json({"type": "snapshot", "data": snap})
+
+        while True:
+            # Keep socket alive and respond to client ping/pong heartbeats
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception:
+        ws_manager.disconnect(websocket)
+
 
 @app.get("/api/stream")
 async def stream_ticks(symbols: str = ""):

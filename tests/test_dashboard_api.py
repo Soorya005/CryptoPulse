@@ -495,7 +495,49 @@ class TestClickHouseIntegration(unittest.TestCase):
         self.assertFalse(test_disp.can_dispatch("BTC"))
         self.assertTrue(test_disp.can_dispatch("ETH"))  # Different symbol not throttled
 
+    def test_price_cache_and_connection_manager(self):
+        """Test in-memory price caching and WebSocket ConnectionManager."""
+        import asyncio
+        from src.production.dashboard.web_app import (
+            ConnectionManager,
+            latest_prices_cache,
+            get_latest_prices,
+        )
+
+        # 1. Test in-memory cache fast path
+        latest_prices_cache["BTC"] = {
+            "symbol": "BTC",
+            "price": 75000.0,
+            "price_usd": 75000.0,
+            "price_inr": 7125000.0,
+            "exchange_rate": 95.0,
+            "rate_timestamp": None,
+            "volume": 1.0,
+            "last_update": "2026-10-31 12:00:00",
+        }
+        res = asyncio.run(get_latest_prices("BTC"))
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["symbol"], "BTC")
+        self.assertEqual(res[0]["price"], 75000.0)
+
+        # 2. Test ConnectionManager
+        from unittest.mock import AsyncMock
+        mgr = ConnectionManager()
+        mock_ws = MagicMock()
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_json = AsyncMock()
+
+        asyncio.run(mgr.connect(mock_ws))
+        self.assertIn(mock_ws, mgr.active_connections)
+
+        asyncio.run(mgr.broadcast({"type": "test", "data": 123}))
+        mock_ws.send_json.assert_called_once_with({"type": "test", "data": 123})
+
+        mgr.disconnect(mock_ws)
+        self.assertNotIn(mock_ws, mgr.active_connections)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

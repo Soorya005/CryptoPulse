@@ -151,22 +151,22 @@ def compute_z_score(
 
 
 def main() -> None:
-    print("=" * 60)
-    print("Anomaly Detector -- Rolling Z-score on price returns")
-    print(f"Kafka:      {KAFKA_BOOTSTRAP_SERVERS} / topic={KAFKA_TOPIC}")
-    print(f"ClickHouse: {CLICKHOUSE_HOST}:{CLICKHOUSE_PORT} / db=stocks")
-    print(f"Threshold:  |Z| >= {THRESHOLD}")
-    print(f"Min samples before scoring: {MIN_SAMPLES}")
-    print(f"Rolling window size:        {WINDOW_SIZE}")
-    print()
-    print("NOTE: Rolling history is in-memory only.")
-    print(f"      A restart clears all histories; each symbol needs {MIN_SAMPLES}")
-    print("      new ticks before scoring can resume.")
-    print()
-    print("NOTE: auto_offset_reset=latest -- live events only.")
-    print("      Messages published while offline are skipped.")
-    print("      Replay evaluation is handled by replay_evaluator.py.")
-    print("=" * 60)
+    print("=" * 60, flush=True)
+    print("Anomaly Detector -- Rolling Z-score on price returns", flush=True)
+    print(f"Kafka:      {KAFKA_BOOTSTRAP_SERVERS} / topic={KAFKA_TOPIC}", flush=True)
+    print(f"ClickHouse: {CLICKHOUSE_HOST}:{CLICKHOUSE_PORT} / db=stocks", flush=True)
+    print(f"Threshold:  |Z| >= {THRESHOLD}", flush=True)
+    print(f"Min samples before scoring: {MIN_SAMPLES}", flush=True)
+    print(f"Rolling window size:        {WINDOW_SIZE}", flush=True)
+    print(flush=True)
+    print("NOTE: Rolling history is in-memory only.", flush=True)
+    print(f"      A restart clears all histories; each symbol needs {MIN_SAMPLES}", flush=True)
+    print("      new ticks before scoring can resume.", flush=True)
+    print(flush=True)
+    print("NOTE: auto_offset_reset=latest -- live events only.", flush=True)
+    print("      Messages published while offline are skipped.", flush=True)
+    print("      Replay evaluation is handled by replay_evaluator.py.", flush=True)
+    print("=" * 60, flush=True)
 
     ch_client = clickhouse_connect.get_client(
         host=CLICKHOUSE_HOST,
@@ -185,7 +185,7 @@ def main() -> None:
         enable_auto_commit=True,
     )
 
-    print("Listening for trades...\n")
+    print("Listening for trades...\n", flush=True)
 
     for msg in consumer:
         try:
@@ -247,7 +247,8 @@ def main() -> None:
                 print(
                     f"  ALERT  symbol={symbol}  Z={z:+.3f}  "
                     f"ret={ret:+.4f}  price={price:.4f}  "
-                    f"n_prior={n_prior}"
+                    f"n_prior={n_prior}",
+                    flush=True,
                 )
 
                 ch_client.insert(

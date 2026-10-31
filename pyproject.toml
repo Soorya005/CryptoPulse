@@ -48,3 +48,7 @@ quote-style = "double"
 
 # Indent with spaces
 indent-style = "space"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+

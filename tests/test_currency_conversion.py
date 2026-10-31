@@ -111,7 +111,7 @@ def test_real_producer_path_with_rate(monkeypatch):
     assert tick["price_inr"] == 6473297.25     # round(68500.50 * 94.50, 2)
     assert tick["exchange_rate"] == 94.50
     assert tick["rate_timestamp"] == "2026-10-16 00:00:00"
-    assert tick["volume"] == 15
+    assert tick["volume"] == 0.015
 
 
 def test_real_producer_path_unavailable_rate(monkeypatch):

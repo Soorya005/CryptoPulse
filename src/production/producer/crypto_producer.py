@@ -208,9 +208,10 @@ def process_ticker_message(message: str, rate_mgr: ExchangeRateManager) -> dict 
         product_id = data.get("product_id", "")
         symbol = SYMBOL_NAMES.get(product_id, product_id.replace("-USD", ""))
         price = float(data.get("price", 0))
-        volume = int(float(data.get("last_size", 0)) * 1000)
+        # Keep exact floating-point volume to prevent VWAP distortion on fractional crypto trades
+        volume = float(data.get("last_size", 0))
 
-        if price <= 0:
+        if price <= 0 or volume <= 0:
             return None
 
         rate, rate_ts = rate_mgr.get_rate()
@@ -224,7 +225,7 @@ def process_ticker_message(message: str, rate_mgr: ExchangeRateManager) -> dict 
             "price_inr": price_inr,               # Converted INR price (None if unavailable)
             "exchange_rate": rate,                # USD/INR conversion rate (None if unavailable)
             "rate_timestamp": rate_ts,            # Provider fetch timestamp formatted for ClickHouse (None if unavail)
-            "volume": max(volume, 1),
+            "volume": volume,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
@@ -248,14 +249,23 @@ def get_producer():
 # WEBSOCKET HANDLER
 # =============================================================================
 
+def on_send_error(excp):
+    print(f"[kafka] Failed to deliver tick: {excp}", file=sys.stderr)
+
+
 def on_message(ws, message):
     """Handle incoming WebSocket message."""
     tick = process_ticker_message(message, rate_manager)
     if tick:
         p = get_producer()
         if p:
-            p.send(KAFKA_TOPIC, tick)
-        print(f"Sent: {tick}")
+            # Key partition by symbol to guarantee per-symbol ordering across partitions
+            p.send(
+                KAFKA_TOPIC,
+                key=tick["symbol"].encode("utf-8"),
+                value=tick,
+            ).add_errback(on_send_error)
+        print(f"Sent: {tick['symbol']} | ${tick['price']} | Vol: {tick['volume']}")
 
 
 def on_error(ws, error):

@@ -29,18 +29,18 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Default values
-CONSUMER="${1:-spark_microbatch}"
+CONSUMER="${1:-spark_streaming}"
 
 # Validate consumer
 case $CONSUMER in
-    spark_microbatch|spark_streaming|flink)
+    spark_streaming|flink)
         ;;
     --help|-h)
         echo "Usage: ./run.sh <consumer>"
         echo ""
         echo "Consumer (pick one):"
         echo "  spark_microbatch  Spark micro-batch processing (default)"
-        echo "  spark_streaming   Spark streaming with windowed aggregations"
+        echo "  spark_streaming   Spark streaming with windowed aggregations (default)"
         echo "  flink             Flink true streaming"
         echo ""
         echo "For demo mode (synthetic stocks), use: ./run_demo.sh"
@@ -48,7 +48,7 @@ case $CONSUMER in
         ;;
     *)
         echo -e "${RED}Error: Unknown consumer '$CONSUMER'${NC}"
-        echo "Valid options: spark_microbatch, spark_streaming, flink"
+        echo "Valid options: spark_streaming, flink"
         exit 1
         ;;
 esac
@@ -73,9 +73,6 @@ echo -e "${GREEN}"
 echo "=============================================="
 echo "  Production Pipeline (Containerized)"
 case $CONSUMER in
-    spark_microbatch)
-        echo "  Kafka -> Spark (micro-batch) -> ClickHouse"
-        ;;
     spark_streaming)
         echo "  Kafka -> Spark (streaming) -> ClickHouse"
         ;;
@@ -143,7 +140,7 @@ docker exec clickhouse clickhouse-client --query "
         avg_price Float64,
         min_price Float64,
         max_price Float64,
-        total_volume UInt64,
+        total_volume Float64,
         tick_count UInt32,
         vwap_inr Nullable(Float64) DEFAULT NULL,
         avg_price_inr Nullable(Float64) DEFAULT NULL,
@@ -154,6 +151,7 @@ docker exec clickhouse clickhouse-client --query "
 "
 # 1m aggregate dual-currency migration -- non-destructive, safe on existing deployments
 docker exec clickhouse clickhouse-client -n --query "
+    ALTER TABLE stocks.ticks_1m_agg MODIFY COLUMN IF EXISTS total_volume Float64;
     ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS vwap_inr Nullable(Float64) DEFAULT NULL;
     ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS avg_price_inr Nullable(Float64) DEFAULT NULL;
     ALTER TABLE stocks.ticks_1m_agg ADD COLUMN IF NOT EXISTS min_price_inr Nullable(Float64) DEFAULT NULL;
