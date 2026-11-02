@@ -1,0 +1,28 @@
+# Dockerfile for Spark Structured Streaming Consumer
+FROM python:3.11-slim
+
+# Install lightweight OpenJDK 17 and curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jre-headless \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+WORKDIR /app
+
+# Install pinned PySpark and ClickHouse driver
+RUN pip install --no-cache-dir \
+    pyspark==3.5.1 \
+    clickhouse-connect==0.7.19 \
+    requests==2.32.3
+
+# Copy application files
+COPY spark/ /app/spark/
+
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Connect internally to Docker Compose services (kafka:29092, clickhouse:8123)
+CMD ["python", "spark/spark_consumer.py", "--kafka-bootstrap", "kafka:29092", "--clickhouse-host", "clickhouse", "--checkpoint-base", "/app/checkpoints"]

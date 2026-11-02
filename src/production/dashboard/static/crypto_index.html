@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoPulse — Institutional Real-Time Trading Terminal</title>
+    <meta name="description" content="Track live crypto trades, analyze market trends, and detect unusual price movements in one institutional dashboard.">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Chart.js 4 + Date-fns Time Adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- CryptoPulse Stylesheet -->
+    <link rel="stylesheet" href="/static/css/dashboard.css?v=2.4">
+    <!-- Main Logic Script -->
+    <script src="/static/js/dashboard.js?v=2.4" defer></script>
+</head>
+
+<body class="light-theme">
+<!-- ========================================================================= -->
+    <div class="dashboard-shell" id="appDashboard">
+        <!-- LEFT SIDEBAR -->
+        <aside class="dashboard-sidebar">
+            <!-- Sidebar Header / Logo -->
+            <a href="/" class="sidebar-brand" style="text-decoration: none; color: inherit; display: flex; align-items: center; cursor: pointer;" title="Back to Landing Page">
+                <div class="logo-icon small">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 19 8.5 19 15.5 12 22 5 15.5 5 8.5 12 2"></polygon>
+                        <circle cx="12" cy="12" r="2.5"></circle>
+                        <line x1="12" y1="2" x2="12" y2="9.5"></line>
+                        <line x1="19" y1="8.5" x2="13.5" y2="12"></line>
+                        <line x1="19" y1="15.5" x2="13.5" y2="12"></line>
+                        <line x1="12" y1="22" x2="12" y2="14.5"></line>
+                        <line x1="5" y1="15.5" x2="10.5" y2="12"></line>
+                        <line x1="5" y1="8.5" x2="10.5" y2="12"></line>
+                    </svg>
+                </div>
+                <span class="brand-title">CryptoPulse</span>
+            </a>
+
+            <!-- Sidebar Nav Links -->
+            <nav class="sidebar-nav">
+<button class="nav-item active" data-section="dashboard" onclick="setSidebarSection('dashboard')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                        <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                        <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                        <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </button>
+
+                <button class="nav-item" data-section="live-market" onclick="setSidebarSection('live-market')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <span>Live Market</span>
+                </button>
+
+                <button class="nav-item" data-section="price-analytics" onclick="setSidebarSection('price-analytics')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Price Analytics</span>
+                </button>
+
+                <button class="nav-item" data-section="recent-trades" onclick="setSidebarSection('recent-trades')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Recent Trades</span>
+                </button>
+
+                <button class="nav-item" data-section="anomaly-alerts" onclick="setSidebarSection('anomaly-alerts')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>Anomaly Alerts</span>
+                    <span class="badge-counter" id="sidebarAlertCount">3</span>
+                </button>
+
+                <button class="nav-item" data-section="pipeline-health" onclick="setSidebarSection('pipeline-health')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Pipeline Health</span>
+                </button>
+
+                <button class="nav-item" data-section="arbitrage-spreads" onclick="setSidebarSection('arbitrage-spreads')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                    <span>Arbitrage &amp; Spreads</span>
+                    <span class="badge-pill-status" style="font-size: 0.62rem; padding: 1px 6px; background: rgba(59, 130, 246, 0.15); color: #3B82F6; border-radius: 4px; font-weight: 700; margin-left: auto;">Live</span>
+                </button>
+
+            </nav>
+        </aside>
+
+        <!-- MAIN DASHBOARD CONTENT AREA -->
+        <main class="dashboard-main">
+            <!-- Top App Header Bar -->
+            <header class="app-topbar">
+                <div class="topbar-title-area">
+                    <h2 class="topbar-page-title">Market Overview</h2>
+                    <span class="topbar-page-subtitle">Real-time Crypto Analytics &amp; Anomaly Detection</span>
+                </div>
+
+                <div class="topbar-right">
+<!-- Theme Toggle (Sun / Moon) -->
+                    <button class="topbar-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Theme">
+                        <svg class="sun-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <svg class="moon-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Live Indicator Badge -->
+                    <div class="live-status-badge">
+                        <span class="live-dot"></span>
+                        <span class="live-text">Live</span>
+                    </div>
+
+                    <!-- Real-Time Date & Time -->
+                    <div class="topbar-clock" id="topbarLiveClock">
+                        Oct 25, 2026 20:42:18
+                    </div>
+                </div>
+            </header>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 1: DASHBOARD OVERVIEW                                    -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view active" id="view-dashboard">
+                <section class="stat-cards-grid">
+                <!-- BTC-USD -->
+                <div class="stat-card" data-symbol="BTC" onclick="selectCardSymbol('BTC')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-btc">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#F7931A"/>
+                                    <path fill="#FFF" d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.922-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.535 2.146-4.148.986-5.318.695l.95-3.805c1.17.292 4.929.872 4.368 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.697 3.61 2.733z"/>
+                                </svg>
+                            </div>
+                            <span class="pair-code">BTC-USD</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceBTC">$67,420.50</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge positive" id="cardChangeBTC">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <span>+1.24%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineBTC" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 20 Q 20 22 35 15 T 70 8 T 100 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ETH-USD -->
+                <div class="stat-card" data-symbol="ETH" onclick="selectCardSymbol('ETH')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-eth">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#627EEA"/>
+                                    <path fill="#FFF" fill-opacity=".6" d="M16.498 4v8.87l7.497 3.35z"/>
+                                    <path fill="#FFF" d="M16.498 4L9 16.22l7.498-3.35z"/>
+                                    <path fill="#FFF" fill-opacity=".6" d="M16.498 21.968v6.027L24 17.616z"/>
+                                    <path fill="#FFF" d="M16.498 27.995v-6.028L9 17.616z"/>
+                                </svg>
+                            </div>
+                            <span class="pair-code">ETH-USD</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceETH">$2,543.18</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge negative" id="cardChangeETH">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                <span>-0.62%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineETH" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 6 Q 25 10 50 18 T 80 24 T 100 22" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SOL-USD -->
+                <div class="stat-card" data-symbol="SOL" onclick="selectCardSymbol('SOL')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-sol">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#14F195"/>
+                                    <path fill="#0F172A" d="M9.8 19.8h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1H12.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1zm0-7.6h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1H12.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1zm2.4 3.8h-11.4c-.5 0-.9.3-1.1.7l-2 2.7c-.3.4 0 1 .5 1h11.4c.5 0 .9-.3 1.1-.7l2-2.7c.3-.4 0-1-.5-1z"/>
+                                </svg>
+                            </div>
+                            <span class="pair-code">SOL-USD</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceSOL">$173.24</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge positive" id="cardChangeSOL">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <span>+2.31%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineSOL" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 22 Q 30 18 55 12 T 80 8 T 100 2" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- USD/INR -->
+                <div class="stat-card" data-symbol="INR" onclick="setCurrencyToggle('INR')">
+                    <div class="stat-card-header">
+                        <div class="asset-identity">
+                            <div class="coin-icon coin-inr">
+                                <svg width="18" height="18" viewBox="0 0 32 32">
+                                    <circle cx="16" cy="16" r="16" fill="#F8FAFC"/>
+                                    <text x="16" y="22" font-size="18" font-weight="700" text-anchor="middle" fill="#0F172A">₹</text>
+                                </svg>
+                            </div>
+                            <span class="pair-code">USD/INR</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card-body">
+                        <div class="stat-price" id="cardPriceINR">94.95</div>
+                        <div class="stat-footer">
+                            <span class="trend-badge positive" id="cardChangeINR">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <span>+0.12%</span>
+                            </span>
+                            <div class="mini-sparkline-box">
+                                <svg class="sparkline-svg" id="sparklineINR" viewBox="0 0 100 28" preserveAspectRatio="none">
+                                    <path d="M 0 16 Q 30 20 50 14 T 75 10 T 100 7" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================= -->
+            <!-- ROW 1.5: MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM PULSE STRIP -->
+            <!-- ============================================================= -->
+            <section class="spread-pulse-strip">
+                <!-- 1. Multi-Exchange Arbitrage Radar (Coinbase vs Kraken) -->
+                <div class="spread-pulse-card" onclick="setSidebarSection('arbitrage-spreads')" title="Click to view full Arbitrage &amp; Spread Terminal">
+                    <div class="spread-card-top">
+                        <div class="spread-card-title-group">
+                            <span class="spread-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span>
+                            <div>
+                                <span class="spread-title">Coinbase ↔ Kraken Cross-Exchange Arbitrage</span>
+                                <span class="spread-sub">Event-time stream join across independent clocks</span>
+                            </div>
+                        </div>
+                        <span class="spread-status-tag" id="arbStatusTag">Market Efficient</span>
+                    </div>
+                    <div class="spread-metrics-row">
+                        <div class="spread-metric-col">
+                            <span class="sm-label">Gross Spread (<span id="arbActiveSym">BTC</span>)</span>
+                            <span class="sm-val" id="arbGrossSpreadVal">$4.20 (0.005%)</span>
+                        </div>
+                        <div class="spread-metric-col">
+                            <span class="sm-label">Round-Trip Fee Hurdle</span>
+                            <span class="sm-val fee">0.35% (Taker/Maker)</span>
+                        </div>
+                        <div class="spread-metric-col">
+                            <span class="sm-label">Net Profit / Window</span>
+                            <span class="sm-val net" id="arbNetProfitVal">-0.345% (Below Hurdle)</span>
+                        </div>
+                        <div class="spread-metric-col action">
+                            <button class="jump-spread-btn">Inspect &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. India Regulatory & Liquidity Premium Tracker (CoinDCX vs Global Benchmark) -->
+                <div class="spread-pulse-card india" onclick="setSidebarSection('arbitrage-spreads')" title="Click to view full India Premium details">
+                    <div class="spread-card-top">
+                        <div class="spread-card-title-group">
+                            <span class="spread-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span>
+                            <div>
+                                <span class="spread-title">India Regulatory Premium (CoinDCX vs Global)</span>
+                                <span class="spread-sub">CoinDCX INR vs Coinbase USD × ECB FX Rate</span>
+                            </div>
+                        </div>
+                        <span class="spread-status-tag india" id="indiaPremiumRegime">High Premium</span>
+                    </div>
+                    <div class="spread-metrics-row">
+                        <div class="spread-metric-col">
+                            <span class="sm-label">CoinDCX Price (<span id="indiaActiveSym">BTC</span>)</span>
+                            <span class="sm-val" id="indiaCoinDCXVal">₹81,34,480</span>
+                        </div>
+                        <div class="spread-metric-col">
+                            <span class="sm-label">Global Benchmark (USD × FX)</span>
+                            <span class="sm-val" id="indiaGlobalImpliedVal">₹70,68,210</span>
+                        </div>
+                        <div class="spread-metric-col">
+                            <span class="sm-label">India Premium Surcharge</span>
+                            <span class="sm-val premium" id="indiaPremiumPctVal">+15.08% (₹10.66L)</span>
+                        </div>
+                        <div class="spread-metric-col action">
+                            <button class="jump-spread-btn india">Spread Analytics &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================= -->
+            <!-- ROW 2: PRICE HISTORY (LEFT) + ONE-MINUTE ANALYTICS (RIGHT)    -->
+            <!-- ============================================================= -->
+            <section class="main-charts-row">
+                <!-- Left: Price History Card -->
+                <div class="panel-card price-history-card" id="priceHistoryCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 20h9"></path>
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Price History</span>
+                        </div>
+
+                        <div class="chart-filter-controls">
+                            <!-- Indicator Overlays -->
+                            <button type="button" class="indicator-pill" id="btnToggleEma9" onclick="toggleEma9()" title="Toggle Exponential Moving Average (9-period overlay)">
+                                <span class="indicator-dot amber"></span>EMA (9)
+                            </button>
+                            <button type="button" class="indicator-pill bollinger" id="btnToggleBollinger" onclick="toggleBollingerBands()" title="Toggle Bollinger Bands (20 periods, 2 standard deviations)">
+                                <span class="indicator-dot purple"></span>Bollinger (20, 2σ)
+                            </button>
+
+                            <!-- Pair Dropdown -->
+                            <div class="custom-select-box">
+                                <select id="pairSelectDropdown" onchange="onPairDropdownChange(this.value)">
+                                    <option value="BTC" selected>BTC-USD</option>
+                                    <option value="ETH">ETH-USD</option>
+                                    <option value="SOL">SOL-USD</option>
+                                    <option value="XRP">XRP-USD</option>
+                                    <option value="DOGE">DOGE-USD</option>
+                                    <option value="LTC">LTC-USD</option>
+                                </select>
+                            </div>
+
+                            <!-- Currency Dropdown -->
+                            <div class="custom-select-box">
+                                <select id="currencySelectDropdown" onchange="onCurrencyDropdownChange(this.value)">
+                                    <option value="USD" selected>USD</option>
+                                    <option value="INR">INR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Chart Container -->
+                    <div class="chart-canvas-container">
+                        <canvas id="priceHistoryChart"></canvas>
+                        <!-- Floating Tooltip Badge Replica (matches reference screenshot) -->
+                        <div class="floating-price-tooltip" id="floatingPriceBadge">
+                            <span class="tooltip-val" id="tooltipPriceVal">$67,420.50</span>
+                            <span class="tooltip-time" id="tooltipTimeVal">20:30:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: One-Minute Analytics Card -->
+                <div class="panel-card analytics-metrics-card" id="analyticsMetricsCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">One-Minute Analytics</span>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="custom-select-box small">
+                                <select id="analyticsPairDropdown" onchange="onAnalyticsPairChange(this.value)">
+                                    <option value="BTC" selected>BTC-USD</option>
+                                    <option value="ETH">ETH-USD</option>
+                                    <option value="SOL">SOL-USD</option>
+                                    <option value="XRP">XRP-USD</option>
+                                    <option value="DOGE">DOGE-USD</option>
+                                    <option value="LTC">LTC-USD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2x3 Stat Metrics Grid -->
+                    <div class="analytics-stat-grid">
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblAvgPrice">Avg Price (USD)</span>
+                            <span class="metric-value" id="valAvgPrice">67,312.40</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblMinPrice">Min Price (USD)</span>
+                            <span class="metric-value" id="valMinPrice">66,915.20</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblMaxPrice">Max Price (USD)</span>
+                            <span class="metric-value" id="valMaxPrice">67,650.10</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label" id="lblVwap">VWAP (USD)</span>
+                            <span class="metric-value" id="valVwap">67,308.25</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label">Total Volume</span>
+                            <span class="metric-value" id="valTotalVolume">12.8463</span>
+                        </div>
+
+                        <div class="metric-block">
+                            <span class="metric-label">Tick Count</span>
+                            <span class="metric-value" id="valTickCount">1,284</span>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Order Flow Imbalance (Lee-Ready 1991) Widget -->
+                    <div class="order-flow-widget" id="orderFlowWidget">
+                        <div class="order-flow-top">
+                            <div class="order-flow-meta">
+                                <span class="order-flow-heading">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                    </svg>
+                                    Order Flow Imbalance
+                                </span>
+                                <span class="order-flow-sub" title="Lee-Ready (1991) trade classification tick rule">Lee-Ready (1991) Microstructure</span>
+                            </div>
+                            <span class="sentiment-badge bullish" id="orderFlowSentimentBadge">
+                                <span class="sentiment-icon">▲</span>
+                                <span id="orderFlowSentimentText">Bullish +13.8%</span>
+                            </span>
+                        </div>
+
+                        <!-- Bi-directional Buyer / Seller Volume Progress Bar -->
+                        <div class="flow-progress-track">
+                            <div class="flow-progress-fill buy" id="flowProgressBuy" style="width: 56.9%;" title="Buyer-Initiated Volume"></div>
+                            <div class="flow-progress-fill sell" id="flowProgressSell" style="width: 43.1%;" title="Seller-Initiated Volume"></div>
+                        </div>
+
+                        <div class="flow-stats-row">
+                            <div class="flow-stat-item">
+                                <span class="flow-dot green"></span>
+                                <span class="flow-stat-name">Buyer:</span>
+                                <strong id="flowBuyPct">56.9%</strong>
+                                <span class="flow-stat-qty" id="flowBuyQty">(14.23 BTC)</span>
+                            </div>
+                            <div class="flow-stat-item end">
+                                <span class="flow-dot red"></span>
+                                <span class="flow-stat-name">Seller:</span>
+                                <strong id="flowSellPct">43.1%</strong>
+                                <span class="flow-stat-qty" id="flowSellQty">(10.77 BTC)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================= -->
+            <!-- ROW 3: RECENT TRADES | ANOMALY ALERTS | PIPELINE HEALTH       -->
+            <!-- ============================================================= -->
+            <section class="bottom-tables-row">
+                <!-- 1. Recent Trades Table -->
+                <div class="panel-card bottom-card" id="recentTradesCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Recent Trades</span>
+                        </div>
+                        <button class="jump-page-link" onclick="setSidebarSection('recent-trades')">View Full Page &rarr;</button>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="recentTradesTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price (INR)</th>
+                                    <th>Volume</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTradesBody">
+                                <tr>
+                                    <td>20:42:18</td>
+                                    <td><span class="sym-badge">BTC-USD</span></td>
+                                    <td>$67,420.50</td>
+                                    <td>₹5,93,82,246</td>
+                                    <td>0.0124</td>
+                                </tr>
+                                <tr>
+                                    <td>20:42:16</td>
+                                    <td><span class="sym-badge">BTC-USD</span></td>
+                                    <td>$67,418.20</td>
+                                    <td>₹5,93,80,202</td>
+                                    <td>0.0041</td>
+                                </tr>
+                                <tr>
+                                    <td>20:42:12</td>
+                                    <td><span class="sym-badge">ETH-USD</span></td>
+                                    <td>$2,543.18</td>
+                                    <td>₹2,24,05,241</td>
+                                    <td>0.0863</td>
+                                </tr>
+                                <tr>
+                                    <td>20:42:08</td>
+                                    <td><span class="sym-badge">SOL-USD</span></td>
+                                    <td>$173.24</td>
+                                    <td>₹15,24,512</td>
+                                    <td>1.4500</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. Anomaly Alerts Table -->
+                <div class="panel-card bottom-card" id="anomalyAlertsCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon alert-icon">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Anomaly Alerts</span>
+                        </div>
+                        <button class="jump-page-link" onclick="setSidebarSection('anomaly-alerts')">View Full Page &rarr;</button>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="anomalyAlertsTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Change</th>
+                                    <th>Threshold</th>
+                                    <th>Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="anomalyAlertsBody">
+                                <tr>
+                                    <td>20:36:15</td>
+                                    <td><span class="sym-badge">BTC-USD</span></td>
+                                    <td class="text-green">+2.41%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge high">High</span></td>
+                                </tr>
+                                <tr>
+                                    <td>20:28:07</td>
+                                    <td><span class="sym-badge">SOL-USD</span></td>
+                                    <td class="text-red">-2.12%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge high">High</span></td>
+                                </tr>
+                                <tr>
+                                    <td>20:15:22</td>
+                                    <td><span class="sym-badge">ETH-USD</span></td>
+                                    <td class="text-green">+2.08%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge medium">Medium</span></td>
+                                </tr>
+                                <tr>
+                                    <td>19:58:10</td>
+                                    <td><span class="sym-badge">XRP-USD</span></td>
+                                    <td class="text-red">-1.94%</td>
+                                    <td>2.00%</td>
+                                    <td><span class="severity-badge medium">Medium</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. Pipeline Health Card -->
+                <div class="panel-card bottom-card" id="pipelineHealthCard">
+                    <div class="card-top-controls">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Pipeline Health</span>
+                        </div>
+                        <button class="jump-page-link" onclick="setSidebarSection('pipeline-health')">View Full Page &rarr;</button>
+                    </div>
+
+                    <div class="pipeline-health-list">
+                        <div class="health-row">
+                            <span class="health-label">Kafka Ingestion Rate</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valKafkaRate">1,240 msgs/s</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 10 Q 15 14 25 8 T 50 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="health-row">
+                            <span class="health-label">Spark Processing Latency</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valSparkLatency">1.8 s</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 6 Q 15 4 30 11 T 50 8" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="health-row">
+                            <span class="health-label">ClickHouse Write Rate</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valClickhouseRate">1,210 rows/s</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 12 Q 18 10 32 6 T 50 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="health-row">
+                            <span class="health-label">API Response Time</span>
+                            <div class="health-right">
+                                <span class="health-val" id="valApiLatency">85 ms</span>
+                                <div class="health-spark">
+                                    <svg viewBox="0 0 50 16">
+                                        <path d="M 0 8 Q 20 6 35 10 T 50 7" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            </div> <!-- /view-dashboard -->
+
+            <!-- ============================================================= -->
+            <!-- VIEW 2: DEDICATED LIVE MARKET STREAM                          -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-live-market">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            WebSocket: Connected (Coinbase Pro)
+                        </span>
+                        <div class="custom-select-box">
+                            <select id="liveMarketSymbolSelect" onchange="onLiveMarketSelect(this.value)">
+                                <option value="BTC" selected>BTC-USD</option>
+                                <option value="ETH">ETH-USD</option>
+                                <option value="SOL">SOL-USD</option>
+                                <option value="XRP">XRP-USD</option>
+                                <option value="DOGE">DOGE-USD</option>
+                                <option value="LTC">LTC-USD</option>
+                            </select>
+                        </div>
+                        <div class="custom-select-box">
+                            <select onchange="onCurrencyDropdownChange(this.value)">
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="INR">INR (₹)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <span style="font-size: 0.82rem; color: var(--text-secondary);">Throughput: <strong style="color:var(--text-primary);">~1,240 ticks/sec</strong></span>
+                    </div>
+                </div>
+
+                <!-- KPI Metric Grid -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Current Price</span>
+                        <span class="kpi-card-value" id="liveMarketCurrentPrice">$67,420.50</span>
+                        <span class="kpi-card-sub text-green" id="liveMarketChange">+1.24% today</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">24h High</span>
+                        <span class="kpi-card-value" id="liveMarketHigh">$68,110.00</span>
+                        <span class="kpi-card-sub">Peak intra-day</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">24h Low</span>
+                        <span class="kpi-card-value" id="liveMarketLow">$66,240.80</span>
+                        <span class="kpi-card-sub">Support floor</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">24h Volume</span>
+                        <span class="kpi-card-value" id="liveMarketVolume">14,820 BTC</span>
+                        <span class="kpi-card-sub">Total spot depth</span>
+                    </div>
+                </div>
+
+                <!-- Live Stream Visual Panel -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title" id="liveMarketChartTitle">BTC-USD Real-Time Stream</span>
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-secondary);">Direct tick stream from Coinbase WebSocket</div>
+                    </div>
+                    <div class="chart-canvas-container" style="height: 380px;">
+                        <canvas id="liveMarketDedicatedChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 3: DEDICATED PRICE ANALYTICS                             -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-price-analytics">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Engine: 1-Minute PySpark Microstructure Aggregation
+                        </span>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <div class="custom-select-box">
+                            <select onchange="onCurrencyDropdownChange(this.value)">
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="INR">INR (₹)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Benchmark KPIs -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Window Strategy</span>
+                        <span class="kpi-card-value">60s Tumbling</span>
+                        <span class="kpi-card-sub">PySpark Watermark: 10s</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Average Spread</span>
+                        <span class="kpi-card-value">0.02%</span>
+                        <span class="kpi-card-sub">Institutional tightness</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Tick Throughput</span>
+                        <span class="kpi-card-value">1,240 /s</span>
+                        <span class="kpi-card-sub">Real-time Kafka ingestion</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Micro-Price VWAP</span>
+                        <span class="kpi-card-value" id="analyticsMatrixVwap">$67,308.25</span>
+                        <span class="kpi-card-sub">Volume-weighted benchmark</span>
+                    </div>
+                </div>
+
+                <!-- Full Multi-Asset Matrix -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Multi-Asset 1-Minute Microstructure Comparison</span>
+                        </div>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="analyticsMatrixTable">
+                            <thead>
+                                <tr>
+                                    <th>Asset</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price (INR)</th>
+                                    <th>1m Avg</th>
+                                    <th>1m Min</th>
+                                    <th>1m Max</th>
+                                    <th>1m VWAP</th>
+                                    <th>1m Volume</th>
+                                    <th>Order Flow</th>
+                                    <th>24h Trend</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analyticsMatrixBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 4: DEDICATED RECENT TRADES PAGE                          -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-recent-trades">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Live WebSocket Feed Active
+                        </span>
+                        <div class="custom-select-box">
+                            <select id="tradesSymbolFilter" onchange="filterDedicatedTrades(this.value)">
+                                <option value="ALL" selected>All Symbols</option>
+                                <option value="BTC">BTC-USD</option>
+                                <option value="ETH">ETH-USD</option>
+                                <option value="SOL">SOL-USD</option>
+                                <option value="XRP">XRP-USD</option>
+                                <option value="DOGE">DOGE-USD</option>
+                                <option value="LTC">LTC-USD</option>
+                            </select>
+                        </div>
+                        <div class="custom-select-box">
+                            <select onchange="onCurrencyDropdownChange(this.value)">
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="INR">INR (₹)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="simulateMicroTick(); showToast('Simulated Trade Ingested');">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span>Simulate Trade</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Summary Grid -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Total Trades Ingested</span>
+                        <span class="kpi-card-value" id="dedicatedTradesCount">1,428,950</span>
+                        <span class="kpi-card-sub">In ClickHouse trades table</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Avg Trade Size</span>
+                        <span class="kpi-card-value">0.142 BTC</span>
+                        <span class="kpi-card-sub">Institutional spot order flow</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Taker Buy / Sell</span>
+                        <span class="kpi-card-value text-green">54.2% / 45.8%</span>
+                        <span class="kpi-card-sub">Bullish net buying pressure</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">USD/INR Base FX</span>
+                        <span class="kpi-card-value" id="dedicatedFxRate">₹94.95</span>
+                        <span class="kpi-card-sub">Real-time conversion factor</span>
+                    </div>
+                </div>
+
+                <!-- Full Dedicated Blotter Table -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Live Trades Execution Blotter</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Direct stream from Coinbase Pro WebSocket</span>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="dedicatedTradesTable">
+                            <thead>
+                                <tr>
+                                    <th>Trade ID</th>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Side</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price (INR)</th>
+                                    <th>Size / Volume</th>
+                                    <th>Notional Value</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dedicatedTradesBody">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 5: DEDICATED ANOMALY ALERTS PAGE                         -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-anomaly-alerts">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Z-Score Model Active (|Z| &ge; 3.0&sigma;)
+                        </span>
+                        <div class="custom-select-box">
+                            <select id="alertsFilterSeverity" onchange="filterDedicatedAlerts(this.value)">
+                                <option value="ALL" selected>All Severities</option>
+                                <option value="high">High Severity (|Z| &ge; 3.5&sigma;)</option>
+                                <option value="medium">Medium Severity (|Z| &ge; 3.0&sigma;)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="simulateAnomalyAlert()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            <span>Simulate Volatility Alert</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Anomaly KPI Summary -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Total Outliers Today</span>
+                        <span class="kpi-card-value text-red" id="dedicatedAlertsTotal">14</span>
+                        <span class="kpi-card-sub">Surpassed &plusmn;3.0&sigma; volatility bands</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Max Recorded Z-Score</span>
+                        <span class="kpi-card-value">+3.84&sigma;</span>
+                        <span class="kpi-card-sub">BTC-USD Flash movement</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Detection Latency</span>
+                        <span class="kpi-card-value">&lt; 180 ms</span>
+                        <span class="kpi-card-sub">Sub-second notification pipeline</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Engine Architecture</span>
+                        <span class="kpi-card-value">PySpark + ClickHouse</span>
+                        <span class="kpi-card-sub">Stateless rolling micro-aggregates</span>
+                    </div>
+                </div>
+
+                <!-- Full Dedicated Anomaly Log Table -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon alert-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Real-Time Anomaly &amp; Volatility Audit Trail</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Filtered by statistical significance</span>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="dedicatedAlertsTable">
+                            <thead>
+                                <tr>
+                                    <th>Alert Time</th>
+                                    <th>Symbol</th>
+                                    <th>Classification</th>
+                                    <th>Price Return</th>
+                                    <th>Z-Score</th>
+                                    <th>Threshold</th>
+                                    <th>Severity</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dedicatedAlertsBody">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- VIEW 6: DEDICATED PIPELINE HEALTH & TELEMETRY PAGE            -->
+            <!-- ============================================================= -->
+            <div class="dashboard-view" id="view-pipeline-health">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            End-to-End Pipeline: All 4 Nodes Operational
+                        </span>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="fetchLivePipelineData(); showToast('Telemetry metrics refreshed');">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span>Refresh Telemetry</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Major Telemetry KPI Cards -->
+                <div class="kpi-summary-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Kafka Ingestion</span>
+                        <span class="kpi-card-value text-green" id="phKafkaRate">1,240 msgs/s</span>
+                        <span class="kpi-card-sub">Topic: crypto-ticks &bull; 0 lag</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Spark Streaming Latency</span>
+                        <span class="kpi-card-value text-green" id="phSparkLatency">1.8 s</span>
+                        <span class="kpi-card-sub">Watermark: 10s &bull; Tumbling window</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">ClickHouse Ingestion</span>
+                        <span class="kpi-card-value text-green" id="phClickhouseRate">1,210 rows/s</span>
+                        <span class="kpi-card-sub">ReplacingMergeTree table</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">API Response Time</span>
+                        <span class="kpi-card-value text-green" id="phApiLatency">85 ms</span>
+                        <span class="kpi-card-sub">FastAPI async roundtrip</span>
+                    </div>
+                </div>
+
+                <!-- Distributed Architecture Components -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Infrastructure Component Health</span>
+                        </div>
+                    </div>
+
+                    <div class="services-health-grid">
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">Coinbase WebSocket Ingestion</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">wss://ws-feed.exchange.coinbase.com</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> Connected</span>
+                        </div>
+
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">Apache Kafka (KRaft mode)</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Port 9092 &bull; Broker cluster active</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> Healthy</span>
+                        </div>
+
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">Apache Spark 3.5 Streaming</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Micro-batch processing active</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> Running</span>
+                        </div>
+
+                        <div class="service-card">
+                            <div>
+                                <div class="service-name">ClickHouse Columnar Database</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Port 8123 &bull; Database: crypto_db</div>
+                            </div>
+                            <span class="service-badge"><span class="pulse-dot" style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span> 1.4M+ Rows</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- VIEW: MULTI-EXCHANGE ARBITRAGE & INDIA PREMIUM TERMINAL           -->
+            <!-- ================================================================= -->
+            <div class="dashboard-view" id="view-arbitrage-spreads">
+                <!-- Action Toolbar -->
+                <div class="view-toolbar">
+                    <div class="view-toolbar-left">
+                        <span class="badge-pill-status">
+                            <span class="pulse-dot"></span>
+                            Multi-Venue Stream Join Engine: Coinbase &bull; Kraken &bull; CoinDCX
+                        </span>
+                        <span class="badge-pill-status" style="font-family: var(--font-mono); font-size: 0.78rem;">
+                            ECB Reference FX: 1 USD = ₹<span id="termFxRate">94.95</span>
+                        </span>
+                    </div>
+                    <div class="view-toolbar-right">
+                        <button class="btn-action-primary" onclick="fetchLivePipelineData(); showToast('Arbitrage & Spread feeds refreshed');">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span>Refresh Feeds</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Major KPI Cards -->
+                <div class="kpi-summary-grid" style="margin-bottom: 24px;">
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Market Efficiency Score</span>
+                        <span class="kpi-card-value text-green" id="kpiEfficiency">99.48%</span>
+                        <span class="kpi-card-sub">Spreads trade inside 0.35% fee hurdle</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Avg Window Persistence</span>
+                        <span class="kpi-card-value" style="color: var(--brand-accent);" id="kpiDuration">1.4s</span>
+                        <span class="kpi-card-sub">Empirical HFT mean reversion</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Round-Trip Fee Hurdle</span>
+                        <span class="kpi-card-value" style="color: var(--color-amber);">0.35%</span>
+                        <span class="kpi-card-sub">0.15% Maker + 0.20% Taker friction</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-card-label">Active Arb Opportunities</span>
+                        <span class="kpi-card-value text-green" id="kpiActiveOpps">0 / 6</span>
+                        <span class="kpi-card-sub">Net profit &gt; 0.00% post-fee</span>
+                    </div>
+                </div>
+
+                <!-- Section 1: Cross-Exchange Arbitrage (Coinbase vs Kraken) -->
+                <div class="panel-card" style="padding: 24px; margin-bottom: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                                    <polyline points="17 6 23 6 23 12"></polyline>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Cross-Exchange Arbitrage &amp; Spread Matrix (Coinbase vs. Kraken)</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Event-time join across independent exchange clocks &bull; Hurdle: 0.35% round-trip</span>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="arbitrageMatrixTable">
+                            <thead>
+                                <tr>
+                                    <th>Asset Pair</th>
+                                    <th>Coinbase USD</th>
+                                    <th>Kraken USD</th>
+                                    <th>Gross Spread</th>
+                                    <th>Spread %</th>
+                                    <th>Clock Skew (&Delta;t)</th>
+                                    <th>Fee Hurdle</th>
+                                    <th>Net Return</th>
+                                    <th>Optimal Route</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="arbitrageMatrixBody">
+                                <tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 24px;">Connecting to Kraken WS v2 stream...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section 2: India Regulatory & Liquidity Premium (CoinDCX vs Global Benchmark) -->
+                <div class="panel-card" style="padding: 24px; margin-bottom: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                </svg>
+                            </div>
+                            <span class="heading-title">India Regulatory &amp; Liquidity Premium Tracker (CoinDCX INR vs. ECB Fair Value)</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">CoinDCX live book vs. ECB conversion &bull; Statutory 1% TDS &amp; LRS limits</span>
+                    </div>
+
+                    <div class="clean-table-wrapper">
+                        <table class="clean-table" id="indiaPremiumMatrixTable">
+                            <thead>
+                                <tr>
+                                    <th>Asset Pair</th>
+                                    <th>CoinDCX Price (INR)</th>
+                                    <th>Global Benchmark (USD)</th>
+                                    <th>ECB Fair Value (INR)</th>
+                                    <th>Gross Spread (INR)</th>
+                                    <th>Premium %</th>
+                                    <th>Regulatory Regime</th>
+                                    <th>Arbitrage Feasibility</th>
+                                </tr>
+                            </thead>
+                            <tbody id="indiaPremiumMatrixBody">
+                                <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">Fetching CoinDCX domestic order book...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section 3: Quantitative Findings & Microstructure Deep-Dive -->
+                <div class="panel-card" style="padding: 24px;">
+                    <div class="card-top-controls" style="margin-bottom: 16px;">
+                        <div class="card-heading">
+                            <div class="heading-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                            </div>
+                            <span class="heading-title">Quantitative Methodology &amp; Microstructure Findings</span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Empirical research &amp; statutory capital control mechanics</span>
+                    </div>
+
+                    <div class="methodology-grid">
+                        <div class="methodology-card">
+                            <div class="methodology-card-header">
+                                <span class="methodology-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span>
+                                <h4>Cross-Exchange Arbitrage: Why Opportunities are "Rare and Brief"</h4>
+                            </div>
+                            <p>
+                                Cross-exchange gross spreads between tier-1 venues like Coinbase and Kraken typically oscillate between <strong>0.005% and 0.05%</strong> in calm liquidity regimes. After accounting for our realistic round-trip fee hurdle of <strong>0.35%</strong> (0.15% maker + 0.20% taker), the <em>net arbitrage profit</em> remains consistently negative.
+                            </p>
+                            <p>
+                                Genuine net-profitable arbitrage windows only emerge during abrupt directional volatility bursts or localized order book imbalances. In our streaming pipeline, these windows persist for an average duration of <strong>~1.4 seconds</strong> before latency-arbitrage algorithmic market makers absorb the disparity.
+                            </p>
+                        </div>
+
+                        <div class="methodology-card">
+                            <div class="methodology-card-header">
+                                <span class="methodology-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span>
+                                <h4>India Premium: Structural Regulatory Capital Controls</h4>
+                            </div>
+                            <p>
+                                Unlike the US/EU crypto corridor, India's crypto markets exhibit a <strong>structural positive premium (+5% to +15%)</strong> against the ECB implied fair value. This spread is not an executable riskless arbitrage due to statutory capital barriers:
+                            </p>
+                            <ul>
+                                <li><strong>Section 194S 1% TDS:</strong> Deducted at source on all crypto-to-crypto and crypto-to-fiat transactions, draining working capital.</li>
+                                <li><strong>RBI LRS (Liberalised Remittance Scheme):</strong> Enforces a strict $250,000 annual outbound ceiling with bank oversight.</li>
+                                <li><strong>Domestic Banking Disconnect:</strong> Inability to seamlessly repatriate USD offshore creates a segmented, captive domestic liquidity pool.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- PIPELINE TELEMETRY MODAL                                                  -->
+    <!-- ========================================================================= -->
+    <div class="modal-backdrop" id="telemetryModal" onclick="closeModalOnBackdrop(event, 'telemetryModal')">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>Pipeline Health & Telemetry</h3>
+                <button class="modal-close-btn" onclick="closeTelemetryModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="telemetryModalContent">
+                <div class="telemetry-grid">
+                    <div class="telemetry-box">
+                        <span class="t-label">Kafka Ingestion</span>
+                        <span class="t-val" id="tKafkaVal">1,240 msgs/s</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="t-label">Spark Streaming Latency</span>
+                        <span class="t-val" id="tSparkVal">1.8 s</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="t-label">ClickHouse Ingestion</span>
+                        <span class="t-val" id="tChVal">1,210 rows/s</span>
+                    </div>
+                    <div class="telemetry-box">
+                        <span class="t-label">API Roundtrip</span>
+                        <span class="t-val" id="tApiVal">85 ms</span>
+                    </div>
+                </div>
+                <p style="margin-top: 14px; font-size: 0.8rem; color: #64748B;">
+                    Architecture: Coinbase WebSocket &rarr; Apache Kafka (KRaft) &rarr; PySpark Structured Streaming &rarr; ClickHouse OLAP &rarr; FastAPI.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Element -->
+    <div id="toast" class="toast-notification"></div>
+</body>
+
+</html>

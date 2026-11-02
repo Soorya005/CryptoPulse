@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detector Comparison Dashboard — Crypto Analytics Anomaly Detection</title>
+  <meta name="description" content="Side-by-side performance evaluation, precision, recall, and detection delay comparison dashboard between Fixed-Threshold and Statistical Z-Score detectors.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar" id="topNav">
+    <a href="/dashboard" class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Crypto Analytics</h1>
+        <span>Detector Benchmark & Comparison Dashboard</span>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <div class="status-badge" id="systemStatusBadge">
+        <span class="pulse-dot"></span>
+        <span>ClickHouse Live</span>
+      </div>
+      <button class="btn btn-primary" id="refreshBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+        </svg>
+        <span>Re-run Evaluation</span>
+      </button>
+      <a href="/docs" target="_blank" class="btn btn-outline">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span>API Docs</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- Dashboard Hero Titles -->
+    <header class="dashboard-hero">
+      <div class="hero-titles">
+        <h2>Detector Comparison Matrix</h2>
+        <p>
+          Empirical evaluation benchmarking <strong>Fixed-Threshold</strong> against <strong>Statistical Z-Score</strong> anomaly detection across synthetic crypto market conditions: baseline normal, sudden spikes, flash crashes, volume surges, and gradual multi-window drift.
+        </p>
+      </div>
+      <div class="hero-meta">
+        <div>Scenarios Evaluated: <strong id="totalScenariosCount">6</strong></div>
+        <div>Total Windows: <strong id="totalWindowsCount">126</strong></div>
+        <div>Last Evaluated: <strong id="lastUpdated">Just now</strong></div>
+      </div>
+    </header>
+
+    <!-- Top Key Metric Cards -->
+    <section class="metrics-grid" id="metricsHeroGrid" aria-label="Executive Metrics">
+      
+      <!-- FixedThreshold Card -->
+      <div class="metric-card card-purple">
+        <div class="metric-header">
+          <span class="metric-title">FixedThreshold Detector</span>
+          <span class="metric-tag">Rule-Based</span>
+        </div>
+        <div class="metric-value-row">
+          <div class="metric-value" id="tRecall">91.7%</div>
+          <div class="metric-sub">Macro Recall</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">
+          <span>Precision: <strong id="tPrecision" style="color: var(--accent-emerald);">100%</strong></span>
+          <span>F1: <strong id="tF1" style="color: #fff;">0.944</strong></span>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="tBar" style="width: 91.7%; background: linear-gradient(90deg, var(--accent-indigo), var(--accent-purple));"></div>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.76rem; color: var(--text-dim); display: flex; justify-content: space-between;">
+          <span>Avg Delay: <strong id="tDelay" style="color: var(--accent-amber);">20.0s (0.3w)</strong></span>
+          <span>Lag on Drift: <strong style="color: var(--accent-amber);">120s</strong></span>
+        </div>
+      </div>
+
+      <!-- Z-Score Card -->
+      <div class="metric-card card-cyan">
+        <div class="metric-header">
+          <span class="metric-title">Statistical Z-Score</span>
+          <span class="metric-tag" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan);">Adaptive Volatility</span>
+        </div>
+        <div class="metric-value-row">
+          <div class="metric-value" id="zRecall" style="color: var(--accent-cyan);">100.0%</div>
+          <div class="metric-sub">Macro Recall</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">
+          <span>Precision: <strong id="zPrecision" style="color: var(--accent-emerald);">100%</strong></span>
+          <span>F1: <strong id="zF1" style="color: #fff;">1.000</strong></span>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="zBar" style="width: 100%; background: linear-gradient(90deg, var(--accent-cyan), #38bdf8);"></div>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.76rem; color: var(--text-dim); display: flex; justify-content: space-between;">
+          <span>Avg Delay: <strong id="zDelay" style="color: var(--accent-emerald);">0.0s (0.0w)</strong></span>
+          <span>Lag on Drift: <strong style="color: var(--accent-emerald);">0s (Instant)</strong></span>
+        </div>
+      </div>
+
+      <!-- Detection Delay Comparison Card -->
+      <div class="metric-card card-emerald">
+        <div class="metric-header">
+          <span class="metric-title">Detection Delay Head-to-Head</span>
+          <span class="metric-tag" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald);">TTD Benchmark</span>
+        </div>
+        <div class="metric-value-row">
+          <div class="metric-value" style="color: var(--accent-emerald);">0s vs 120s</div>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+          Z-Score triggers on window #1 of gradual drift, delivering an advantage of <strong>2 full windows (120 seconds faster)</strong> over FixedThreshold.
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" style="width: 100%; background: linear-gradient(90deg, var(--accent-emerald), #10b981);"></div>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.76rem; color: var(--text-dim);">
+          Latency Advantage: <strong style="color: var(--accent-emerald);">Z-Score Dominates on Drift</strong>
+        </div>
+      </div>
+
+      <!-- False Alarm Resistance Card -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">False Alarm Immunity</span>
+          <span class="metric-tag">Precision Parity</span>
+        </div>
+        <div class="metric-value-row">
+          <div class="metric-value" style="color: #fff;">0.0%</div>
+          <div class="metric-sub">FP Rate on Normal</div>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+          Both detectors achieved <strong>100% precision</strong> and <strong>0 false positives</strong> during baseline random market walk periods.
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" style="width: 100%; background: linear-gradient(90deg, #6366f1, #06b6d4);"></div>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.76rem; color: var(--text-dim);">
+          Clean Data Reliability: <strong style="color: var(--accent-emerald);">100% Precision</strong>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Main Comparison Table Section -->
+    <section class="table-section" id="comparisonTableSection">
+      
+      <!-- Table Toolbar -->
+      <div class="table-toolbar">
+        <div class="toolbar-title">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            Detector Evaluation Matrix
+          </h3>
+          <span>Side-by-side empirical testing of precision, recall, and detection latency</span>
+        </div>
+
+        <div class="toolbar-controls">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search scenarios, notes...">
+
+          <select id="scenarioSelect" class="select-filter">
+            <option value="all">All Scenarios</option>
+            <option value="normal">Normal Baseline</option>
+            <option value="price_spike">Price Spike (+12%)</option>
+            <option value="flash_crash">Flash Crash (-15%)</option>
+            <option value="volume_surge">Volume Surge (5x)</option>
+            <option value="combined">Combined Shock</option>
+            <option value="gradual_drift">Gradual Price Drift</option>
+          </select>
+
+          <div class="btn-filter-group">
+            <button class="btn-filter active" data-filter="all">All Detectors</button>
+            <button class="btn-filter" data-filter="threshold">FixedThreshold</button>
+            <button class="btn-filter" data-filter="zscore">Z-Score</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Body -->
+      <div class="table-responsive">
+        <table class="comparison-table" id="detectorTable">
+          <thead>
+            <tr>
+              <th class="sortable" data-col="scenario">Scenario / Event</th>
+              <th class="sortable" data-col="detector">Detector Type</th>
+              <th class="sortable" data-col="expected">Expected</th>
+              <th class="sortable" data-col="fired">Alerts Fired</th>
+              <th>Confusion (TP / FP / FN)</th>
+              <th class="sortable" data-col="precision">Precision</th>
+              <th class="sortable" data-col="recall">Recall</th>
+              <th class="sortable" data-col="f1">F1 Score</th>
+              <th class="sortable" data-col="delay_s">Detection Delay</th>
+              <th class="sortable" data-col="winner">Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="comparisonTableBody">
+            <!-- Dynamically populated by dashboard.js -->
+            <tr>
+              <td colspan="10" style="text-align: center; padding: 3rem; color: var(--text-dim);">
+                <div class="loading-spinner"></div>
+                <div style="margin-top: 0.75rem;">Loading detector comparison data...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Head-to-Head Architectural Trade-offs Matrix -->
+    <section class="comparison-grid" id="architecturalComparisonSection">
+      
+      <!-- FixedThreshold Spec -->
+      <div class="spec-card">
+        <div class="spec-card-header">
+          <div class="spec-title-group">
+            <h4 style="color: #a5b4fc;">Fixed-Threshold Detector</h4>
+            <span class="spec-subtitle">Static Percentage Bounds & Multipliers</span>
+          </div>
+          <span class="detector-pill threshold">Rule-Based</span>
+        </div>
+
+        <ul class="spec-list" id="thresholdStrengths">
+          <!-- Populated by JS -->
+        </ul>
+
+        <div class="spec-param-box">
+          <div>Price Threshold: <strong>±5.0%</strong></div>
+          <div>Volume Multiplier: <strong>2.0x</strong></div>
+          <div>Lookback Depth: <strong>20 windows</strong></div>
+          <div>Min History: <strong>5 windows</strong></div>
+        </div>
+      </div>
+
+      <!-- Z-Score Spec -->
+      <div class="spec-card">
+        <div class="spec-card-header">
+          <div class="spec-title-group">
+            <h4 style="color: #67e8f9;">Statistical Z-Score Detector</h4>
+            <span class="spec-subtitle">Dynamic Normal Distribution (Z = (X - μ) / σ)</span>
+          </div>
+          <span class="detector-pill zscore">Statistical</span>
+        </div>
+
+        <ul class="spec-list" id="zscoreStrengths">
+          <!-- Populated by JS -->
+        </ul>
+
+        <div class="spec-param-box">
+          <div>Price Z Threshold: <strong>|Z| ≥ 3.0σ</strong></div>
+          <div>Volume Z Threshold: <strong>Z ≥ 3.0σ</strong></div>
+          <div>Confidence Interval: <strong>99.7%</strong></div>
+          <div>Min History: <strong>5 windows</strong></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Live Telemetry & Simulation Playground Grid -->
+    <section class="bottom-grid">
+      
+      <!-- Operational ClickHouse Latency -->
+      <div class="panel-card" id="operationalLatencyCard">
+        <h3>
+          <span>ClickHouse Pipeline Latency</span>
+          <span class="metric-tag" id="liveAlerts1h">Live Metrics</span>
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
+          Real-time measurement of end-to-end detection delay in production (time from window event occurrence to alert persistence in <code>stocks.market_alerts</code>).
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; text-align: center; margin-bottom: 1.25rem;">
+          <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Total Alerts</div>
+            <div id="opTotalAlerts" style="font-size: 1.35rem; font-weight: 800; font-family: var(--font-mono); color: #fff;">--</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Avg Latency</div>
+            <div id="opAvgDelay" style="font-size: 1.35rem; font-weight: 800; font-family: var(--font-mono); color: var(--accent-cyan);">--</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Median</div>
+            <div id="opMedianDelay" style="font-size: 1.35rem; font-weight: 800; font-family: var(--font-mono); color: var(--accent-emerald);">--</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">P95 Latency</div>
+            <div id="opP95Delay" style="font-size: 1.35rem; font-weight: 800; font-family: var(--font-mono); color: var(--accent-amber);">--</div>
+          </div>
+        </div>
+
+        <!-- Production Strategy Recommendation -->
+        <div class="recommendation-box">
+          <h4>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Deployment Recommendations
+          </h4>
+          <p id="recProduction">Ensemble Deployment: Run both detectors in parallel to pair deterministic hard guardrails with adaptive statistical sensitivity.</p>
+          <p id="recVolatility" style="font-size: 0.8rem; color: var(--text-dim);"></p>
+          <p id="recCircuit" style="font-size: 0.8rem; color: var(--text-dim);"></p>
+        </div>
+      </div>
+
+      <!-- Live Interactive Simulation Playground -->
+      <div class="panel-card" id="simulationCard">
+        <h3>
+          <span>Interactive Benchmark Simulator</span>
+          <span class="metric-tag" style="background: rgba(99,102,241,0.2); color: #a5b4fc;">Live Replay API</span>
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+          Trigger real-time in-memory simulation against <code>/metrics/evaluation</code> for any selected market scenario and observe detector performance metrics.
+        </p>
+
+        <div class="sim-controls">
+          <select id="simScenarioSelect" class="select-filter" style="flex: 1;">
+            <option value="gradual_drift">Gradual Price Drift (Benchmark for Delay)</option>
+            <option value="price_spike">Price Spike (+12%)</option>
+            <option value="flash_crash">Flash Crash (-15%)</option>
+            <option value="volume_surge">Volume Surge (5x)</option>
+            <option value="combined">Combined Shock (+15% & 6x)</option>
+            <option value="normal">Normal Baseline (Zero Anomalies)</option>
+          </select>
+          <button id="simRunBtn" class="btn btn-primary">
+            <span>Execute Simulation</span>
+          </button>
+        </div>
+
+        <div id="simResultOutput" class="sim-result-box">
+          Select a scenario and click 'Execute Simulation' to run the benchmark live...
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>
+        Crypto Analytics Platform — Member 4 Anomaly Detection System &bull; 
+        Powered by <a href="/docs" target="_blank">FastAPI</a>, ClickHouse, and Python
+      </p>
+    </footer>
+
+  </main>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

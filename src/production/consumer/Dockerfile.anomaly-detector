@@ -1,0 +1,13 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Minimal deps: Kafka consumer + ClickHouse HTTP client.
+# Versions pinned to match the rest of the production stack.
+RUN pip install --no-cache-dir \
+    kafka-python-ng==2.2.2 \
+    clickhouse-connect==0.8.9
+
+COPY anomaly_detector.py ./
+
+CMD ["python", "anomaly_detector.py"]
