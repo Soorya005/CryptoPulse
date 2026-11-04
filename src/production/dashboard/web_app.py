@@ -243,13 +243,14 @@ def _get_official_24h_stats() -> dict[str, dict]:
         try:
             url = f"https://api.exchange.coinbase.com/products/{sym}-USD/stats"
             req = urllib.request.Request(url, headers={"User-Agent": "CryptoPulse/1.0"})
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 new_stats[sym] = {
                     "high": float(data.get("high")) if data.get("high") else None,
                     "low": float(data.get("low")) if data.get("low") else None,
                     "open": float(data.get("open")) if data.get("open") else None,
                     "volume": float(data.get("volume")) if data.get("volume") else None,
+                    "last": float(data.get("last")) if data.get("last") else None,
                 }
         except Exception:
             pass
@@ -312,26 +313,47 @@ def _get_24h_stats_sync() -> dict[str, dict]:
             close_p = r[6]
 
             # Merge with official exchange 24h stats to cover offline time gaps
+            vol = r[4] or 0.0
             if sym in official:
                 off = official[sym]
                 if off.get("low") is not None:
                     ch_min = min(ch_min, off["low"]) if ch_min else off["low"]
                 if off.get("high") is not None:
                     ch_max = max(ch_max, off["high"]) if ch_max else off["high"]
-                if off.get("open") is not None and (not open_p or open_p <= 0):
+                if off.get("open") is not None:
                     open_p = off["open"]
+                if off.get("volume") is not None:
+                    vol = max(vol, off["volume"])
 
             chg = round(((close_p - open_p) / open_p) * 100, 2) if open_p and open_p > 0 else 0.0
             res[sym] = {
                 "min_price": ch_min,
                 "max_price": ch_max,
                 "vwap": r[3],
-                "volume": r[4],
+                "volume": vol,
                 "open_price": open_p,
                 "close_price": close_p,
                 "change_pct": chg,
                 "tick_count": r[7],
             }
+        for sym, off in official.items():
+            if sym not in res:
+                o_low = off.get("low")
+                o_high = off.get("high")
+                o_open = off.get("open")
+                o_last = off.get("last") or o_open
+                o_vol = off.get("volume") or 0.0
+                chg = round(((o_last - o_open) / o_open) * 100, 2) if o_open and o_last else 0.0
+                res[sym] = {
+                    "min_price": o_low,
+                    "max_price": o_high,
+                    "vwap": o_last,
+                    "volume": o_vol,
+                    "open_price": o_open,
+                    "close_price": o_last,
+                    "change_pct": chg,
+                    "tick_count": 0,
+                }
         _stats_24h_cache = res
         _last_stats_24h_fetch = now_m
     except Exception:
@@ -860,28 +882,71 @@ async def get_stats(symbols: str = "", hours: int = Query(default=24, ge=1, le=7
         """
         rows = ch.query(query_fallback).result_rows
 
-    return [
-        {
-            "symbol": row[0],
-            "tick_count": row[1],
-            "min_price": _format_financial_precision(row[2], False),
-            "max_price": _format_financial_precision(row[3], False),
-            "avg_price": _format_financial_precision(row[4], False),
-            "total_volume": row[5],
-            "vwap": _format_financial_precision(row[6], False),
-            "open_price": _format_financial_precision(row[7], False),
-            "close_price": _format_financial_precision(row[8], False),
-            "change_pct": row[9] if row[9] is not None else 0.0,
-            "volatility_pct": row[10] if row[10] is not None else 0.0,
-            "total_turnover_usd": row[11] if row[11] is not None else 0.0,
-            "total_turnover_inr": row[12] if row[12] is not None else 0.0,
-            "min_price_inr": _format_financial_precision(row[13], True),
-            "max_price_inr": _format_financial_precision(row[14], True),
-            "avg_price_inr": _format_financial_precision(row[15], True),
-            "vwap_inr": _format_financial_precision(row[16], True),
-        }
-        for row in rows
-    ]
+    official = _get_official_24h_stats() if hours == 24 else {}
+
+    output = []
+    for row in rows:
+        sym = row[0]
+        tick_count = row[1]
+        min_p = row[2]
+        max_p = row[3]
+        avg_p = row[4]
+        vol = row[5] or 0.0
+        vwap = row[6]
+        open_p = row[7]
+        close_p = row[8]
+        chg_pct = row[9] if row[9] is not None else 0.0
+        volat_pct = row[10] if row[10] is not None else 0.0
+        turnover_usd = row[11] if row[11] is not None else 0.0
+        turnover_inr = row[12] if row[12] is not None else 0.0
+        min_p_inr = row[13]
+        max_p_inr = row[14]
+        avg_p_inr = row[15]
+        vwap_inr = row[16]
+
+        fx = (min_p_inr / min_p) if (min_p and min_p_inr and min_p > 0) else 94.64
+
+        if hours == 24 and sym in official:
+            off = official[sym]
+            if off.get("low") is not None:
+                min_p = min(min_p, off["low"]) if min_p is not None else off["low"]
+                min_p_inr = round(min_p * fx, 2)
+            if off.get("high") is not None:
+                max_p = max(max_p, off["high"]) if max_p is not None else off["high"]
+                max_p_inr = round(max_p * fx, 2)
+            if off.get("open") is not None:
+                open_p = off["open"]
+            if off.get("volume") is not None and off["volume"] > vol:
+                vol = off["volume"]
+                turnover_usd = round(vol * (vwap or avg_p or 1.0), 2)
+                turnover_inr = round(turnover_usd * fx, 2)
+
+            if open_p and open_p > 0 and close_p:
+                chg_pct = round(((close_p - open_p) / open_p) * 100, 2)
+            if avg_p and avg_p > 0 and min_p and max_p:
+                volat_pct = round(((max_p - min_p) / avg_p) * 100, 2)
+
+        output.append({
+            "symbol": sym,
+            "tick_count": tick_count,
+            "min_price": _format_financial_precision(min_p, False),
+            "max_price": _format_financial_precision(max_p, False),
+            "avg_price": _format_financial_precision(avg_p, False),
+            "total_volume": vol,
+            "vwap": _format_financial_precision(vwap, False),
+            "open_price": _format_financial_precision(open_p, False),
+            "close_price": _format_financial_precision(close_p, False),
+            "change_pct": chg_pct,
+            "volatility_pct": volat_pct,
+            "total_turnover_usd": turnover_usd,
+            "total_turnover_inr": turnover_inr,
+            "min_price_inr": _format_financial_precision(min_p_inr, True),
+            "max_price_inr": _format_financial_precision(max_p_inr, True),
+            "avg_price_inr": _format_financial_precision(avg_p_inr, True),
+            "vwap_inr": _format_financial_precision(vwap_inr, True),
+        })
+
+    return output
 
 
 @app.get("/api/count")
