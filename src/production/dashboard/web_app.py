@@ -53,6 +53,7 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+import urllib.request
 
 logger = logging.getLogger("web_app")
 
@@ -226,6 +227,39 @@ _aggregates_1m_cache: dict[str, dict] = {}
 _last_aggregates_1m_fetch: float = 0.0
 
 
+_official_24h_cache: dict[str, dict] = {}
+_last_official_24h_fetch: float = 0.0
+
+
+def _get_official_24h_stats() -> dict[str, dict]:
+    """Fetch official exchange 24h stats directly from Coinbase public API (cached for 60s)."""
+    global _official_24h_cache, _last_official_24h_fetch
+    now = time.time()
+    if _official_24h_cache and (now - _last_official_24h_fetch < 60.0):
+        return _official_24h_cache
+
+    new_stats = {}
+    for sym in ["BTC", "ETH", "SOL", "XRP", "DOGE", "LTC"]:
+        try:
+            url = f"https://api.exchange.coinbase.com/products/{sym}-USD/stats"
+            req = urllib.request.Request(url, headers={"User-Agent": "CryptoPulse/1.0"})
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                new_stats[sym] = {
+                    "high": float(data.get("high")) if data.get("high") else None,
+                    "low": float(data.get("low")) if data.get("low") else None,
+                    "open": float(data.get("open")) if data.get("open") else None,
+                    "volume": float(data.get("volume")) if data.get("volume") else None,
+                }
+        except Exception:
+            pass
+
+    if new_stats:
+        _official_24h_cache = new_stats
+        _last_official_24h_fetch = now
+    return _official_24h_cache
+
+
 def _get_24h_stats_sync() -> dict[str, dict]:
     global _stats_24h_cache, _last_stats_24h_fetch
     now_m = time.time()
@@ -268,14 +302,29 @@ def _get_24h_stats_sync() -> dict[str, dict]:
             """
             rows = ch.query(q_fallback).result_rows
 
+        official = _get_official_24h_stats()
         res = {}
         for r in rows:
+            sym = r[0]
+            ch_min = r[1]
+            ch_max = r[2]
             open_p = r[5]
             close_p = r[6]
+
+            # Merge with official exchange 24h stats to cover offline time gaps
+            if sym in official:
+                off = official[sym]
+                if off.get("low") is not None:
+                    ch_min = min(ch_min, off["low"]) if ch_min else off["low"]
+                if off.get("high") is not None:
+                    ch_max = max(ch_max, off["high"]) if ch_max else off["high"]
+                if off.get("open") is not None and (not open_p or open_p <= 0):
+                    open_p = off["open"]
+
             chg = round(((close_p - open_p) / open_p) * 100, 2) if open_p and open_p > 0 else 0.0
-            res[r[0]] = {
-                "min_price": r[1],
-                "max_price": r[2],
+            res[sym] = {
+                "min_price": ch_min,
+                "max_price": ch_max,
                 "vwap": r[3],
                 "volume": r[4],
                 "open_price": open_p,
@@ -288,7 +337,6 @@ def _get_24h_stats_sync() -> dict[str, dict]:
     except Exception:
         pass
     return _stats_24h_cache
-
 
 def _get_1m_aggregates_sync() -> dict[str, dict]:
     global _aggregates_1m_cache, _last_aggregates_1m_fetch
