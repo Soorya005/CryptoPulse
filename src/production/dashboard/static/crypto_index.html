@@ -14,9 +14,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <!-- CryptoPulse Stylesheet -->
-    <link rel="stylesheet" href="/static/css/dashboard.css?v=2.4">
-    <!-- Main Logic Script -->
-    <script src="/static/js/dashboard.js?v=2.4" defer></script>
+    <link rel="stylesheet" href="/static/css/dashboard.css?v=1793800000">
+    <!-- Main Logic Script with Cache-Busting Timestamp -->
+    <script src="/static/js/dashboard.js?v=1793800000" defer></script>
 </head>
 
 <body class="light-theme">
@@ -87,7 +87,7 @@
                         <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                     <span>Anomaly Alerts</span>
-                    <span class="badge-counter" id="sidebarAlertCount">3</span>
+                    <span class="badge-counter" id="sidebarAlertCount">3,694</span>
                 </button>
 
                 <button class="nav-item" data-section="pipeline-health" onclick="setSidebarSection('pipeline-health')">
@@ -148,7 +148,7 @@
 
                     <!-- Real-Time Date & Time -->
                     <div class="topbar-clock" id="topbarLiveClock">
-                        Oct 25, 2026 20:42:18
+                        --
                     </div>
                 </div>
             </header>
@@ -173,11 +173,11 @@
                     </div>
 
                     <div class="stat-card-body">
-                        <div class="stat-price" id="cardPriceBTC">$67,420.50</div>
+                        <div class="stat-price" id="cardPriceBTC">--</div>
                         <div class="stat-footer">
                             <span class="trend-badge positive" id="cardChangeBTC">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                                <span>+1.24%</span>
+                                <span>--%</span>
                             </span>
                             <div class="mini-sparkline-box">
                                 <svg class="sparkline-svg" id="sparklineBTC" viewBox="0 0 100 28" preserveAspectRatio="none">
@@ -206,11 +206,11 @@
                     </div>
 
                     <div class="stat-card-body">
-                        <div class="stat-price" id="cardPriceETH">$2,543.18</div>
+                        <div class="stat-price" id="cardPriceETH">--</div>
                         <div class="stat-footer">
                             <span class="trend-badge negative" id="cardChangeETH">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                <span>-0.62%</span>
+                                <span>--%</span>
                             </span>
                             <div class="mini-sparkline-box">
                                 <svg class="sparkline-svg" id="sparklineETH" viewBox="0 0 100 28" preserveAspectRatio="none">
@@ -236,11 +236,11 @@
                     </div>
 
                     <div class="stat-card-body">
-                        <div class="stat-price" id="cardPriceSOL">$173.24</div>
+                        <div class="stat-price" id="cardPriceSOL">--</div>
                         <div class="stat-footer">
                             <span class="trend-badge positive" id="cardChangeSOL">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                                <span>+2.31%</span>
+                                <span>--%</span>
                             </span>
                             <div class="mini-sparkline-box">
                                 <svg class="sparkline-svg" id="sparklineSOL" viewBox="0 0 100 28" preserveAspectRatio="none">
@@ -266,11 +266,11 @@
                     </div>
 
                     <div class="stat-card-body">
-                        <div class="stat-price" id="cardPriceINR">94.95</div>
+                        <div class="stat-price" id="cardPriceINR">--</div>
                         <div class="stat-footer">
                             <span class="trend-badge positive" id="cardChangeINR">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                                <span>+0.12%</span>
+                                <span>--%</span>
                             </span>
                             <div class="mini-sparkline-box">
                                 <svg class="sparkline-svg" id="sparklineINR" viewBox="0 0 100 28" preserveAspectRatio="none">
@@ -301,7 +301,7 @@
                     <div class="spread-metrics-row">
                         <div class="spread-metric-col">
                             <span class="sm-label">Gross Spread (<span id="arbActiveSym">BTC</span>)</span>
-                            <span class="sm-val" id="arbGrossSpreadVal">$4.20 (0.005%)</span>
+                            <span class="sm-val" id="arbGrossSpreadVal">--</span>
                         </div>
                         <div class="spread-metric-col">
                             <span class="sm-label">Round-Trip Fee Hurdle</span>
@@ -309,7 +309,7 @@
                         </div>
                         <div class="spread-metric-col">
                             <span class="sm-label">Net Profit / Window</span>
-                            <span class="sm-val net" id="arbNetProfitVal">-0.345% (Below Hurdle)</span>
+                            <span class="sm-val net" id="arbNetProfitVal">--</span>
                         </div>
                         <div class="spread-metric-col action">
                             <button class="jump-spread-btn">Inspect &rarr;</button>
@@ -327,20 +327,20 @@
                                 <span class="spread-sub">CoinDCX INR vs Coinbase USD × ECB FX Rate</span>
                             </div>
                         </div>
-                        <span class="spread-status-tag india" id="indiaPremiumRegime">High Premium</span>
+                        <span class="spread-status-tag india" id="indiaPremiumRegime">Loading...</span>
                     </div>
                     <div class="spread-metrics-row">
                         <div class="spread-metric-col">
                             <span class="sm-label">CoinDCX Price (<span id="indiaActiveSym">BTC</span>)</span>
-                            <span class="sm-val" id="indiaCoinDCXVal">₹81,34,480</span>
+                            <span class="sm-val" id="indiaCoinDCXVal">--</span>
                         </div>
                         <div class="spread-metric-col">
                             <span class="sm-label">Global Benchmark (USD × FX)</span>
-                            <span class="sm-val" id="indiaGlobalImpliedVal">₹70,68,210</span>
+                            <span class="sm-val" id="indiaGlobalImpliedVal">--</span>
                         </div>
                         <div class="spread-metric-col">
                             <span class="sm-label">India Premium Surcharge</span>
-                            <span class="sm-val premium" id="indiaPremiumPctVal">+15.08% (₹10.66L)</span>
+                            <span class="sm-val premium" id="indiaPremiumPctVal">--</span>
                         </div>
                         <div class="spread-metric-col action">
                             <button class="jump-spread-btn india">Spread Analytics &rarr;</button>
@@ -402,8 +402,8 @@
                         <canvas id="priceHistoryChart"></canvas>
                         <!-- Floating Tooltip Badge Replica (matches reference screenshot) -->
                         <div class="floating-price-tooltip" id="floatingPriceBadge">
-                            <span class="tooltip-val" id="tooltipPriceVal">$67,420.50</span>
-                            <span class="tooltip-time" id="tooltipTimeVal">20:30:00</span>
+                            <span class="tooltip-val" id="tooltipPriceVal">--</span>
+                            <span class="tooltip-time" id="tooltipTimeVal">--</span>
                         </div>
                     </div>
                 </div>
@@ -440,32 +440,32 @@
                     <div class="analytics-stat-grid">
                         <div class="metric-block">
                             <span class="metric-label" id="lblAvgPrice">Avg Price (USD)</span>
-                            <span class="metric-value" id="valAvgPrice">67,312.40</span>
+                            <span class="metric-value" id="valAvgPrice">--</span>
                         </div>
 
                         <div class="metric-block">
                             <span class="metric-label" id="lblMinPrice">Min Price (USD)</span>
-                            <span class="metric-value" id="valMinPrice">66,915.20</span>
+                            <span class="metric-value" id="valMinPrice">--</span>
                         </div>
 
                         <div class="metric-block">
                             <span class="metric-label" id="lblMaxPrice">Max Price (USD)</span>
-                            <span class="metric-value" id="valMaxPrice">67,650.10</span>
+                            <span class="metric-value" id="valMaxPrice">--</span>
                         </div>
 
                         <div class="metric-block">
                             <span class="metric-label" id="lblVwap">VWAP (USD)</span>
-                            <span class="metric-value" id="valVwap">67,308.25</span>
+                            <span class="metric-value" id="valVwap">--</span>
                         </div>
 
                         <div class="metric-block">
                             <span class="metric-label">Total Volume</span>
-                            <span class="metric-value" id="valTotalVolume">12.8463</span>
+                            <span class="metric-value" id="valTotalVolume">--</span>
                         </div>
 
                         <div class="metric-block">
                             <span class="metric-label">Tick Count</span>
-                            <span class="metric-value" id="valTickCount">1,284</span>
+                            <span class="metric-value" id="valTickCount">--</span>
                         </div>
                     </div>
 
@@ -481,30 +481,30 @@
                                 </span>
                                 <span class="order-flow-sub" title="Lee-Ready (1991) trade classification tick rule">Lee-Ready (1991) Microstructure</span>
                             </div>
-                            <span class="sentiment-badge bullish" id="orderFlowSentimentBadge">
-                                <span class="sentiment-icon">▲</span>
-                                <span id="orderFlowSentimentText">Bullish +13.8%</span>
+                            <span class="sentiment-badge neutral" id="orderFlowSentimentBadge">
+                                <span class="sentiment-icon">―</span>
+                                <span id="orderFlowSentimentText">--</span>
                             </span>
                         </div>
 
                         <!-- Bi-directional Buyer / Seller Volume Progress Bar -->
                         <div class="flow-progress-track">
-                            <div class="flow-progress-fill buy" id="flowProgressBuy" style="width: 56.9%;" title="Buyer-Initiated Volume"></div>
-                            <div class="flow-progress-fill sell" id="flowProgressSell" style="width: 43.1%;" title="Seller-Initiated Volume"></div>
+                            <div class="flow-progress-fill buy" id="flowProgressBuy" style="width: 50%;" title="Buyer-Initiated Volume"></div>
+                            <div class="flow-progress-fill sell" id="flowProgressSell" style="width: 50%;" title="Seller-Initiated Volume"></div>
                         </div>
 
                         <div class="flow-stats-row">
                             <div class="flow-stat-item">
                                 <span class="flow-dot green"></span>
                                 <span class="flow-stat-name">Buyer:</span>
-                                <strong id="flowBuyPct">56.9%</strong>
-                                <span class="flow-stat-qty" id="flowBuyQty">(14.23 BTC)</span>
+                                <strong id="flowBuyPct">--%</strong>
+                                <span class="flow-stat-qty" id="flowBuyQty">(--)</span>
                             </div>
                             <div class="flow-stat-item end">
                                 <span class="flow-dot red"></span>
                                 <span class="flow-stat-name">Seller:</span>
-                                <strong id="flowSellPct">43.1%</strong>
-                                <span class="flow-stat-qty" id="flowSellQty">(10.77 BTC)</span>
+                                <strong id="flowSellPct">--%</strong>
+                                <span class="flow-stat-qty" id="flowSellQty">(--)</span>
                             </div>
                         </div>
                     </div>
@@ -542,34 +542,7 @@
                                 </tr>
                             </thead>
                             <tbody id="recentTradesBody">
-                                <tr>
-                                    <td>20:42:18</td>
-                                    <td><span class="sym-badge">BTC-USD</span></td>
-                                    <td>$67,420.50</td>
-                                    <td>₹5,93,82,246</td>
-                                    <td>0.0124</td>
-                                </tr>
-                                <tr>
-                                    <td>20:42:16</td>
-                                    <td><span class="sym-badge">BTC-USD</span></td>
-                                    <td>$67,418.20</td>
-                                    <td>₹5,93,80,202</td>
-                                    <td>0.0041</td>
-                                </tr>
-                                <tr>
-                                    <td>20:42:12</td>
-                                    <td><span class="sym-badge">ETH-USD</span></td>
-                                    <td>$2,543.18</td>
-                                    <td>₹2,24,05,241</td>
-                                    <td>0.0863</td>
-                                </tr>
-                                <tr>
-                                    <td>20:42:08</td>
-                                    <td><span class="sym-badge">SOL-USD</span></td>
-                                    <td>$173.24</td>
-                                    <td>₹15,24,512</td>
-                                    <td>1.4500</td>
-                                </tr>
+                                <tr><td colspan="5" style="text-align:center; padding: 18px; color: var(--text-secondary);">Waiting for live trade stream...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -603,34 +576,7 @@
                                 </tr>
                             </thead>
                             <tbody id="anomalyAlertsBody">
-                                <tr>
-                                    <td>20:36:15</td>
-                                    <td><span class="sym-badge">BTC-USD</span></td>
-                                    <td class="text-green">+2.41%</td>
-                                    <td>2.00%</td>
-                                    <td><span class="severity-badge high">High</span></td>
-                                </tr>
-                                <tr>
-                                    <td>20:28:07</td>
-                                    <td><span class="sym-badge">SOL-USD</span></td>
-                                    <td class="text-red">-2.12%</td>
-                                    <td>2.00%</td>
-                                    <td><span class="severity-badge high">High</span></td>
-                                </tr>
-                                <tr>
-                                    <td>20:15:22</td>
-                                    <td><span class="sym-badge">ETH-USD</span></td>
-                                    <td class="text-green">+2.08%</td>
-                                    <td>2.00%</td>
-                                    <td><span class="severity-badge medium">Medium</span></td>
-                                </tr>
-                                <tr>
-                                    <td>19:58:10</td>
-                                    <td><span class="sym-badge">XRP-USD</span></td>
-                                    <td class="text-red">-1.94%</td>
-                                    <td>2.00%</td>
-                                    <td><span class="severity-badge medium">Medium</span></td>
-                                </tr>
+                                <tr><td colspan="5" style="text-align:center; padding: 18px; color: var(--text-secondary);">No active anomaly alerts detected</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -657,7 +603,7 @@
                         <div class="health-row">
                             <span class="health-label">Kafka Ingestion Rate</span>
                             <div class="health-right">
-                                <span class="health-val" id="valKafkaRate">1,240 msgs/s</span>
+                                <span class="health-val" id="valKafkaRate">-- msgs/s</span>
                                 <div class="health-spark">
                                     <svg viewBox="0 0 50 16">
                                         <path d="M 0 10 Q 15 14 25 8 T 50 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
@@ -669,7 +615,7 @@
                         <div class="health-row">
                             <span class="health-label">Spark Processing Latency</span>
                             <div class="health-right">
-                                <span class="health-val" id="valSparkLatency">1.8 s</span>
+                                <span class="health-val" id="valSparkLatency">-- s</span>
                                 <div class="health-spark">
                                     <svg viewBox="0 0 50 16">
                                         <path d="M 0 6 Q 15 4 30 11 T 50 8" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
@@ -681,7 +627,7 @@
                         <div class="health-row">
                             <span class="health-label">ClickHouse Write Rate</span>
                             <div class="health-right">
-                                <span class="health-val" id="valClickhouseRate">1,210 rows/s</span>
+                                <span class="health-val" id="valClickhouseRate">-- rows/s</span>
                                 <div class="health-spark">
                                     <svg viewBox="0 0 50 16">
                                         <path d="M 0 12 Q 18 10 32 6 T 50 4" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
@@ -693,7 +639,7 @@
                         <div class="health-row">
                             <span class="health-label">API Response Time</span>
                             <div class="health-right">
-                                <span class="health-val" id="valApiLatency">85 ms</span>
+                                <span class="health-val" id="valApiLatency">-- ms</span>
                                 <div class="health-spark">
                                     <svg viewBox="0 0 50 16">
                                         <path d="M 0 8 Q 20 6 35 10 T 50 7" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
@@ -735,7 +681,7 @@
                         </div>
                     </div>
                     <div class="view-toolbar-right">
-                        <span style="font-size: 0.82rem; color: var(--text-secondary);">Throughput: <strong style="color:var(--text-primary);">~1,240 ticks/sec</strong></span>
+                        <span style="font-size: 0.82rem; color: var(--text-secondary);">Throughput: <strong id="liveMarketThroughput" style="color:var(--text-primary);">-- ticks/sec</strong></span>
                     </div>
                 </div>
 
@@ -743,22 +689,22 @@
                 <div class="kpi-summary-grid">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Current Price</span>
-                        <span class="kpi-card-value" id="liveMarketCurrentPrice">$67,420.50</span>
-                        <span class="kpi-card-sub text-green" id="liveMarketChange">+1.24% today</span>
+                        <span class="kpi-card-value" id="liveMarketCurrentPrice">--</span>
+                        <span class="kpi-card-sub" id="liveMarketChange">--% today</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">24h High</span>
-                        <span class="kpi-card-value" id="liveMarketHigh">$68,110.00</span>
+                        <span class="kpi-card-value" id="liveMarketHigh">--</span>
                         <span class="kpi-card-sub">Peak intra-day</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">24h Low</span>
-                        <span class="kpi-card-value" id="liveMarketLow">$66,240.80</span>
+                        <span class="kpi-card-value" id="liveMarketLow">--</span>
                         <span class="kpi-card-sub">Support floor</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">24h Volume</span>
-                        <span class="kpi-card-value" id="liveMarketVolume">14,820 BTC</span>
+                        <span class="kpi-card-value" id="liveMarketVolume">--</span>
                         <span class="kpi-card-sub">Total spot depth</span>
                     </div>
                 </div>
@@ -796,7 +742,7 @@
                     </div>
                     <div class="view-toolbar-right">
                         <div class="custom-select-box">
-                            <select onchange="onCurrencyDropdownChange(this.value)">
+                            <select id="analyticsCurrencySelect" onchange="onCurrencyDropdownChange(this.value)">
                                 <option value="USD" selected>USD ($)</option>
                                 <option value="INR">INR (₹)</option>
                             </select>
@@ -808,23 +754,23 @@
                 <div class="kpi-summary-grid">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Window Strategy</span>
-                        <span class="kpi-card-value">60s Tumbling</span>
-                        <span class="kpi-card-sub">PySpark Watermark: 10s</span>
+                        <span class="kpi-card-value" id="analyticsWindowStrategy">60s Tumbling</span>
+                        <span class="kpi-card-sub" id="analyticsWindowWatermark">PySpark Watermark: 10s</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Average Spread</span>
-                        <span class="kpi-card-value">0.02%</span>
-                        <span class="kpi-card-sub">Institutional tightness</span>
+                        <span class="kpi-card-value" id="analyticsAvgSpread">--%</span>
+                        <span class="kpi-card-sub" id="analyticsSpreadQuality">Institutional tightness</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Tick Throughput</span>
-                        <span class="kpi-card-value">1,240 /s</span>
-                        <span class="kpi-card-sub">Real-time Kafka ingestion</span>
+                        <span class="kpi-card-value" id="analyticsTickThroughput">-- /s</span>
+                        <span class="kpi-card-sub" id="analyticsThroughputSub">Real-time Kafka ingestion</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Micro-Price VWAP</span>
-                        <span class="kpi-card-value" id="analyticsMatrixVwap">$67,308.25</span>
-                        <span class="kpi-card-sub">Volume-weighted benchmark</span>
+                        <span class="kpi-card-value" id="analyticsMatrixVwap">--</span>
+                        <span class="kpi-card-sub" id="analyticsVwapSub">Volume-weighted benchmark</span>
                     </div>
                 </div>
 
@@ -909,22 +855,22 @@
                 <div class="kpi-summary-grid">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Total Trades Ingested</span>
-                        <span class="kpi-card-value" id="dedicatedTradesCount">1,428,950</span>
+                        <span class="kpi-card-value" id="dedicatedTradesCount">1,085,420</span>
                         <span class="kpi-card-sub">In ClickHouse trades table</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Avg Trade Size</span>
-                        <span class="kpi-card-value">0.142 BTC</span>
-                        <span class="kpi-card-sub">Institutional spot order flow</span>
+                        <span class="kpi-card-value" id="dedicatedAvgTradeSize">0.0425 BTC</span>
+                        <span class="kpi-card-sub" id="dedicatedAvgTradeSub">Institutional spot order flow</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Taker Buy / Sell</span>
-                        <span class="kpi-card-value text-green">54.2% / 45.8%</span>
-                        <span class="kpi-card-sub">Bullish net buying pressure</span>
+                        <span class="kpi-card-value text-green" id="dedicatedTakerRatio">54.2% / 45.8%</span>
+                        <span class="kpi-card-sub" id="dedicatedTakerSentiment">Bullish net buying pressure</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">USD/INR Base FX</span>
-                        <span class="kpi-card-value" id="dedicatedFxRate">₹94.95</span>
+                        <span class="kpi-card-value" id="dedicatedFxRate">&#8377;94.75</span>
                         <span class="kpi-card-sub">Real-time conversion factor</span>
                     </div>
                 </div>
@@ -998,17 +944,17 @@
                 <div class="kpi-summary-grid">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Total Outliers Today</span>
-                        <span class="kpi-card-value text-red" id="dedicatedAlertsTotal">14</span>
+                        <span class="kpi-card-value text-red" id="dedicatedAlertsTotal">3,694</span>
                         <span class="kpi-card-sub">Surpassed &plusmn;3.0&sigma; volatility bands</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Max Recorded Z-Score</span>
-                        <span class="kpi-card-value">+3.84&sigma;</span>
-                        <span class="kpi-card-sub">BTC-USD Flash movement</span>
+                        <span class="kpi-card-value" id="dedicatedMaxZScore">+3.42&sigma;</span>
+                        <span class="kpi-card-sub" id="dedicatedMaxZScoreSub">Flash movement monitor</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Detection Latency</span>
-                        <span class="kpi-card-value">&lt; 180 ms</span>
+                        <span class="kpi-card-value" id="dedicatedDetectionLatency">142 ms</span>
                         <span class="kpi-card-sub">Sub-second notification pipeline</span>
                     </div>
                     <div class="kpi-card">
@@ -1080,22 +1026,22 @@
                 <div class="kpi-summary-grid">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Kafka Ingestion</span>
-                        <span class="kpi-card-value text-green" id="phKafkaRate">1,240 msgs/s</span>
+                        <span class="kpi-card-value text-green" id="phKafkaRate">-- msgs/s</span>
                         <span class="kpi-card-sub">Topic: crypto-ticks &bull; 0 lag</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Spark Streaming Latency</span>
-                        <span class="kpi-card-value text-green" id="phSparkLatency">1.8 s</span>
-                        <span class="kpi-card-sub">Watermark: 10s &bull; Tumbling window</span>
+                        <span class="kpi-card-value text-green" id="phSparkLatency">-- s</span>
+                        <span class="kpi-card-sub" id="phSparkWatermarkSub">Watermark: 10s &bull; Tumbling window</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">ClickHouse Ingestion</span>
-                        <span class="kpi-card-value text-green" id="phClickhouseRate">1,210 rows/s</span>
+                        <span class="kpi-card-value text-green" id="phClickhouseRate">-- rows/s</span>
                         <span class="kpi-card-sub">ReplacingMergeTree table</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">API Response Time</span>
-                        <span class="kpi-card-value text-green" id="phApiLatency">85 ms</span>
+                        <span class="kpi-card-value text-green" id="phApiLatency">-- ms</span>
                         <span class="kpi-card-sub">FastAPI async roundtrip</span>
                     </div>
                 </div>
@@ -1164,7 +1110,7 @@
                             Multi-Venue Stream Join Engine: Coinbase &bull; Kraken &bull; CoinDCX
                         </span>
                         <span class="badge-pill-status" style="font-family: var(--font-mono); font-size: 0.78rem;">
-                            ECB Reference FX: 1 USD = ₹<span id="termFxRate">94.95</span>
+                            ECB Reference FX: 1 USD = ₹<span id="termFxRate">--</span>
                         </span>
                     </div>
                     <div class="view-toolbar-right">
@@ -1179,12 +1125,12 @@
                 <div class="kpi-summary-grid" style="margin-bottom: 24px;">
                     <div class="kpi-card">
                         <span class="kpi-card-label">Market Efficiency Score</span>
-                        <span class="kpi-card-value text-green" id="kpiEfficiency">99.48%</span>
+                        <span class="kpi-card-value text-green" id="kpiEfficiency">--%</span>
                         <span class="kpi-card-sub">Spreads trade inside 0.35% fee hurdle</span>
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Avg Window Persistence</span>
-                        <span class="kpi-card-value" style="color: var(--brand-accent);" id="kpiDuration">1.4s</span>
+                        <span class="kpi-card-value" style="color: var(--brand-accent);" id="kpiDuration">--s</span>
                         <span class="kpi-card-sub">Empirical HFT mean reversion</span>
                     </div>
                     <div class="kpi-card">
@@ -1194,7 +1140,7 @@
                     </div>
                     <div class="kpi-card">
                         <span class="kpi-card-label">Active Arb Opportunities</span>
-                        <span class="kpi-card-value text-green" id="kpiActiveOpps">0 / 6</span>
+                        <span class="kpi-card-value text-green" id="kpiActiveOpps">-- / 6</span>
                         <span class="kpi-card-sub">Net profit &gt; 0.00% post-fee</span>
                     </div>
                 </div>
@@ -1337,19 +1283,19 @@
                 <div class="telemetry-grid">
                     <div class="telemetry-box">
                         <span class="t-label">Kafka Ingestion</span>
-                        <span class="t-val" id="tKafkaVal">1,240 msgs/s</span>
+                        <span class="t-val" id="tKafkaVal">-- msgs/s</span>
                     </div>
                     <div class="telemetry-box">
                         <span class="t-label">Spark Streaming Latency</span>
-                        <span class="t-val" id="tSparkVal">1.8 s</span>
+                        <span class="t-val" id="tSparkVal">-- s</span>
                     </div>
                     <div class="telemetry-box">
                         <span class="t-label">ClickHouse Ingestion</span>
-                        <span class="t-val" id="tChVal">1,210 rows/s</span>
+                        <span class="t-val" id="tChVal">-- rows/s</span>
                     </div>
                     <div class="telemetry-box">
                         <span class="t-label">API Roundtrip</span>
-                        <span class="t-val" id="tApiVal">85 ms</span>
+                        <span class="t-val" id="tApiVal">-- ms</span>
                     </div>
                 </div>
                 <p style="margin-top: 14px; font-size: 0.8rem; color: #64748B;">

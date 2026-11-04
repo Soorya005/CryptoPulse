@@ -59,6 +59,38 @@ class TestPureUnitHelpers(unittest.TestCase):
         with self.assertRaises(HTTPException):
             validate_symbols("INVALID_COIN")
 
+    def test_cache_busting_and_no_cache_headers(self):
+        """Test crypto_index.html has cache-busting query parameter and web_app sets no-cache headers."""
+        import re
+        from fastapi.testclient import TestClient
+        from src.production.dashboard.web_app import app
+
+        html_path = os.path.join(
+            os.path.dirname(__file__), "..", "src", "production", "dashboard", "static", "crypto_index.html"
+        )
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        match = re.search(r'<script\s+src="(/static/js/dashboard\.js\?v=[^"]+)"', html)
+        self.assertIsNotNone(match, "crypto_index.html must have cache-busting ?v= parameter on dashboard.js script tag")
+
+        client = TestClient(app)
+        res_js = client.get("/static/js/dashboard.js")
+        self.assertEqual(res_js.status_code, 200)
+        self.assertIn("no-cache", res_js.headers.get("Cache-Control", ""))
+
+        res_terminal = client.get("/terminal")
+        self.assertEqual(res_terminal.status_code, 200)
+        self.assertIn("no-cache", res_terminal.headers.get("Cache-Control", ""))
+        self.assertIn("/static/js/dashboard.js?v=", res_terminal.text)
+
+        # Verify API endpoints also enforce no-cache
+        res_flow = client.get("/api/order-flow")
+        self.assertIn("no-cache", res_flow.headers.get("Cache-Control", ""))
+
+        res_recent = client.get("/api/recent?limit=5")
+        self.assertIn("no-cache", res_recent.headers.get("Cache-Control", ""))
+
     def test_more_than_100_same_second_records(self):
         """Test keyset pagination drains 150 rows sharing the exact same timestamp."""
         from src.production.dashboard.web_app import SSECursorTracker
@@ -385,6 +417,32 @@ class TestClickHouseIntegration(unittest.TestCase):
             self.assertIn(candle[1], ('BTC', 'ETH'))  # symbol
             self.assertGreaterEqual(candle[3], candle[4])  # high >= low
 
+    def test_alerts_endpoint_and_summary(self):
+        """Test /api/alerts and /api/alerts/summary return max_z_score, detection_latency_ms, total_today."""
+        import asyncio
+        from src.production.dashboard.web_app import get_market_alerts, get_alerts_summary
+
+        alerts_payload = asyncio.run(get_market_alerts(limit=5))
+        self.assertIn("alerts", alerts_payload)
+        self.assertIn("total_today", alerts_payload)
+        self.assertIn("max_z_score", alerts_payload)
+        self.assertIn("detection_latency_ms", alerts_payload)
+        self.assertIsInstance(alerts_payload["alerts"], list)
+        self.assertGreaterEqual(alerts_payload["total_today"], 0)
+        self.assertGreaterEqual(alerts_payload["max_z_score"], 0.0)
+        self.assertGreaterEqual(alerts_payload["detection_latency_ms"], 0.0)
+
+        # Raw list mode
+        raw_alerts = asyncio.run(get_market_alerts(limit=5, raw=True))
+        self.assertIsInstance(raw_alerts, list)
+
+        # Summary endpoint
+        summary_payload = asyncio.run(get_alerts_summary())
+        self.assertIn("total_today", summary_payload)
+        self.assertIn("max_z_score", summary_payload)
+        self.assertIn("detection_latency_ms", summary_payload)
+        self.assertGreaterEqual(summary_payload["total_today"], 0)
+        self.assertGreaterEqual(summary_payload["max_z_score"], 0.0)
 
     def test_telemetry_live_query(self):
         """Test telemetry queries for latency, ingestion rate, and ClickHouse compression ratio."""
