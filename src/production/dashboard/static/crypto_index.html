@@ -932,7 +932,11 @@
                             </select>
                         </div>
                     </div>
-                    <div class="view-toolbar-right">
+                    <div class="view-toolbar-right" style="display:flex; align-items:center; gap:8px;">
+                        <button class="btn-action-secondary" onclick="openWebhookModal()" style="display:inline-flex; align-items:center; gap:6px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            <span id="btnWebhookLabel">Webhook Alert: Setup</span>
+                        </button>
                         <button class="btn-action-primary" onclick="simulateAnomalyAlert()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                             <span>Simulate Volatility Alert</span>
@@ -1301,6 +1305,49 @@
                 <p style="margin-top: 14px; font-size: 0.8rem; color: #64748B;">
                     Architecture: Coinbase WebSocket &rarr; Apache Kafka (KRaft) &rarr; PySpark Structured Streaming &rarr; ClickHouse OLAP &rarr; FastAPI.
                 </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ALERT WEBHOOK MODAL (Discord / Telegram / Slack)                          -->
+    <!-- ========================================================================= -->
+    <div class="modal-backdrop" id="webhookModal" onclick="closeModalOnBackdrop(event, 'webhookModal')">
+        <div class="modal-dialog" style="max-width: 560px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-blue)" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    <h3>Discord / Webhook Alert Dispatcher</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeWebhookModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.4;">
+                    Automatically dispatches real-time statistical anomaly alerts (|Z| &ge; 3.0&sigma;) directly to your Discord channel with formatted embeds, USD/INR values, and volatility return percentages.
+                </p>
+                <div style="margin-bottom: 14px;">
+                    <label style="display:block; font-size: 0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color: var(--text-secondary); margin-bottom: 6px;">
+                        Discord Webhook URL
+                    </label>
+                    <input type="text" id="webhookUrlInput" placeholder="https://discord.com/api/webhooks/..." style="width:100%; box-sizing:border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-card); background: var(--bg-hover); color: var(--text-primary); font-family: monospace; font-size: 0.82rem; outline:none;" />
+                </div>
+                <div id="webhookStatusDisplay" style="display:flex; align-items:center; justify-content:space-between; padding: 10px 14px; border-radius: 8px; background: var(--bg-hover); border: 1px solid var(--border-card); margin-bottom: 18px; font-size: 0.82rem;">
+                    <span><strong>Current Status:</strong> <span id="webhookStatusText" style="color:var(--text-muted);">Checking...</span></span>
+                    <span id="webhookPlatformBadge" class="badge-pill-status" style="display:none; font-size:0.7rem; padding:2px 8px;"></span>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">
+                    <button class="btn-action-secondary" onclick="sendTestWebhookAlert()" style="display:inline-flex; align-items:center; gap:6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <span>Send Test Alert to Discord</span>
+                    </button>
+                    <button class="btn-action-primary" onclick="saveWebhookConfiguration()" style="display:inline-flex; align-items:center; gap:6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                        <span>Save Webhook</span>
+                    </button>
+                </div>
+                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-card); font-size: 0.75rem; color: var(--text-muted); line-height: 1.35;">
+                    <strong>How to get Discord URL:</strong> Right-click your Discord channel &rarr; <em>Edit Channel</em> &rarr; <em>Integrations</em> &rarr; <em>Webhooks</em> &rarr; <em>New Webhook</em> &rarr; <em>Copy Webhook URL</em>.
+                </div>
             </div>
         </div>
     </div>

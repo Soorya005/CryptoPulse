@@ -2679,6 +2679,103 @@ function trySSEStream() {
 // MODULE 19: DOM INITIALIZATION & LIFECYCLE BOOTSTRAP
 // =============================================================================
 
+// =============================================================================
+// MODULE: ALERT WEBHOOK INTEGRATION (DISCORD, TELEGRAM, SLACK)
+// =============================================================================
+
+async function fetchWebhookStatus() {
+    try {
+        const res = await fetch('/api/alerts/webhook/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        const statusEl = document.getElementById('webhookStatusText');
+        const badgeEl = document.getElementById('webhookPlatformBadge');
+        const inputEl = document.getElementById('webhookUrlInput');
+        const btnLabel = document.getElementById('btnWebhookLabel');
+
+        if (data.configured) {
+            if (statusEl) {
+                statusEl.textContent = `Connected: ${data.platform || "Webhook"} (${data.masked_url || "Active"})`;
+                statusEl.style.color = "var(--color-green)";
+            }
+            if (badgeEl) {
+                badgeEl.style.display = "inline-block";
+                badgeEl.textContent = data.platform || "Active";
+            }
+            if (btnLabel) btnLabel.textContent = `Webhook: ${data.platform || "Active"}`;
+            if (inputEl && !inputEl.value && data.masked_url) {
+                inputEl.placeholder = data.masked_url;
+            }
+        } else {
+            if (statusEl) {
+                statusEl.textContent = "Not configured (Local alerts only)";
+                statusEl.style.color = "var(--text-muted)";
+            }
+            if (badgeEl) badgeEl.style.display = "none";
+            if (btnLabel) btnLabel.textContent = "Webhook: Setup";
+        }
+    } catch (e) {
+        console.warn("Failed to fetch webhook status:", e);
+    }
+}
+
+function openWebhookModal() {
+    const m = document.getElementById('webhookModal');
+    if (m) m.classList.add('active');
+    fetchWebhookStatus();
+}
+
+function closeWebhookModal() {
+    const m = document.getElementById('webhookModal');
+    if (m) m.classList.remove('active');
+}
+
+async function saveWebhookConfiguration() {
+    const inputEl = document.getElementById('webhookUrlInput');
+    const url = inputEl ? inputEl.value.trim() : "";
+    if (!url) {
+        showToast("Please enter a valid webhook URL");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/alerts/webhook/config', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url })
+        });
+        const data = await res.json();
+        if (data.configured) {
+            showToast(`Webhook saved! Connected to ${data.platform}`);
+            fetchWebhookStatus();
+        } else {
+            showToast("Webhook cleared or inactive");
+        }
+    } catch (e) {
+        showToast("Error saving webhook: " + e.message);
+    }
+}
+
+async function sendTestWebhookAlert() {
+    showToast("Sending test alert to Discord...");
+    try {
+        const res = await fetch('/api/alerts/webhook/test', {
+            method: "POST"
+        });
+        const data = await res.json();
+        if (data.status === "delivered") {
+            showToast(`Test alert delivered to ${data.platform}! Check your channel.`);
+        } else if (data.status === "simulated") {
+            showToast("Webhook not configured yet. Enter URL and click Save.");
+        } else {
+            showToast(`Delivery status: ${data.status}`);
+        }
+        fetchWebhookStatus();
+    } catch (e) {
+        showToast("Error sending test alert: " + e.message);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize digital UTC/local clock
     initLiveClock();
@@ -2706,6 +2803,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. Connect real-time WebSocket / SSE streaming (instant sub-100ms updates)
     initRealtimeStream();
+    fetchWebhookStatus();
 
     // 6. Start background polling cycle for multi-table analytics
     fetchLivePipelineData();
@@ -2766,3 +2864,8 @@ window.fetchIndiaPremiumData = fetchIndiaPremiumData;
 window.renderIndiaPremiumMatrix = renderIndiaPremiumMatrix;
 window.updateFxDisplay = updateFxDisplay;
 window.updateAnomalyKpis = updateAnomalyKpis;
+window.openWebhookModal = openWebhookModal;
+window.closeWebhookModal = closeWebhookModal;
+window.saveWebhookConfiguration = saveWebhookConfiguration;
+window.sendTestWebhookAlert = sendTestWebhookAlert;
+window.fetchWebhookStatus = fetchWebhookStatus;
