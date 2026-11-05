@@ -1351,6 +1351,42 @@ body.dark-theme .btn-action-primary:hover {
     background: #2563EB;
 }
 
+.btn-action-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-action-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-blue);
+    color: var(--color-blue);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+body.dark-theme .btn-action-secondary {
+    background: #1E293B;
+    border-color: #334155;
+    color: #F8FAFC;
+}
+
+body.dark-theme .btn-action-secondary:hover {
+    background: #273549;
+    border-color: #60A5FA;
+    color: #60A5FA;
+}
+
 /* Nav jump button on preview cards */
 .jump-page-link {
     display: inline-flex;
