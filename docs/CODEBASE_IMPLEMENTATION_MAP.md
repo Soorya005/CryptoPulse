@@ -1,6 +1,6 @@
 # CryptoPulse — Master Codebase Implementation & File Directory
 ### Official Team Reference Guide for Project Report, Presentation & Viva
-> **Share this document with all teammates:** Soorya AP, Sreerag S Menon, Vedha VK, Vyshnav Pradeep  
+> 
 > **Repository Root:** `C:\Users\SOORYA\Documents\local_streaming_pipeline`  
 > **Last Verified:** November 2026 (Production Main Branch)
 
