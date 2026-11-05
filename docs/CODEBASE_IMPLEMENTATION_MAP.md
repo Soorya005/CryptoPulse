@@ -225,15 +225,4 @@ C:\Users\SOORYA\Documents\local_streaming_pipeline\
 
 ---
 
-## 11. Team Module Ownership Quick Guide
 
-| Team Member | Module | Primary Code Files |
-| :--- | :--- | :--- |
-| **Soorya AP** | **Frontend & UI** | `dashboard.js`, `crypto_index.html`, `dashboard.css`, Chart.js canvas, USD/INR toggle, Webhook UI |
-| **Sreerag S Menon** | **Ingestion & Quality** | `crypto_producer.py`, `ExchangeRateManager` 4-tier failover, Kafka schema validation, CoinDCX feed |
-| **Vedha VK** | **Streaming & OLAP** | `spark_streaming_clickhouse_consumer.py`, `init_db.sql`, ReplacingMergeTree, 30s watermark, checkpoints |
-| **Vyshnav Pradeep** | **Detection & Eval** | `detector/zscore_detector.py`, `threshold_detector.py`, `runner.py`, `evaluation.py`, precision/recall |
-
----
-
-*Generated for CryptoPulse Production Pipeline | All paths and line numbers verified against local repository commit `892f382`.*
