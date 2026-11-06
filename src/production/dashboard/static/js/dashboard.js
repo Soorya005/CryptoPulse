@@ -203,6 +203,65 @@ function updateFxDisplay(rate) {
     if (dedicatedFxEl) dedicatedFxEl.textContent = `\u20B9${numRate.toFixed(2)}`;
 }
 
+/**
+ * Normalizes any timestamp (UTC string, ISO string, ClickHouse DateTime, Unix ms, Date)
+ * into the client's local 24-hour time string (HH:mm:ss or HH:mm).
+ * Guarantees consistent local timezone presentation across all dashboard components.
+ *
+ * @param {string|number|Date} rawTs - Raw timestamp
+ * @param {boolean} [includeSeconds=true] - Whether to include seconds
+ * @returns {string} Formatted local time string
+ */
+function formatLocalTimestamp(rawTs, includeSeconds = true) {
+    if (!rawTs) {
+        const now = new Date();
+        const s = now.toTimeString().slice(0, 8);
+        return includeSeconds ? s : s.slice(0, 5);
+    }
+
+    if (rawTs instanceof Date) {
+        if (isNaN(rawTs.getTime())) return '';
+        const s = rawTs.toTimeString().slice(0, 8);
+        return includeSeconds ? s : s.slice(0, 5);
+    }
+
+    if (typeof rawTs === 'number') {
+        const ms = rawTs < 1e11 ? rawTs * 1000 : rawTs;
+        const d = new Date(ms);
+        if (!isNaN(d.getTime())) {
+            const s = d.toTimeString().slice(0, 8);
+            return includeSeconds ? s : s.slice(0, 5);
+        }
+    }
+
+    let str = String(rawTs).trim();
+    if (!str) return new Date().toTimeString().slice(0, includeSeconds ? 8 : 5);
+
+    // If it's already a bare time string formatted in local time (e.g. "07:49:29" or "07:49")
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(str)) {
+        if (!includeSeconds && str.length === 8) return str.slice(0, 5);
+        if (includeSeconds && str.length === 5) return str + ':00';
+        return str;
+    }
+
+    try {
+        let iso = str.replace(' UTC', '');
+        if (iso.includes(' ') && !iso.includes('T')) {
+            iso = iso.replace(' ', 'T');
+        }
+        if (!iso.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
+            iso += 'Z';
+        }
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) {
+            const s = d.toTimeString().slice(0, 8);
+            return includeSeconds ? s : s.slice(0, 5);
+        }
+    } catch (e) {}
+
+    return new Date().toTimeString().slice(0, includeSeconds ? 8 : 5);
+}
+
 // =============================================================================
 // MODULE 3: REAL-TIME SYSTEM CLOCK
 // =============================================================================
@@ -505,7 +564,7 @@ async function loadRealChartHistory(sym) {
                 const labels = [];
                 const values = [];
                 candles.forEach(c => {
-                    const t = c.t ? c.t.slice(11, 16) : '';
+                    const t = formatLocalTimestamp(c.t, false);
                     const p = currencyMode === 'INR' ? (c.c_inr || (c.c * (activeFxRate || 94.96))) : c.c;
                     if (p > 0) {
                         labels.push(t);
@@ -773,7 +832,7 @@ function updateRecentTradesTable(trades) {
     if (trades && trades.length > 0) {
         const newTrades = trades.map((t) => ({
             id: t.id || `TX-${Math.floor(800000 + Math.random() * 190000)}`,
-            timestamp: t.timestamp ? (t.timestamp.includes('T') ? t.timestamp.split('T')[1].split('.')[0] : t.timestamp) : new Date().toLocaleTimeString(),
+            timestamp: formatLocalTimestamp(t.timestamp, true),
             symbol: (t.symbol || 'BTC').replace('-USD', ''),
             side: t.side || 'BUY',
             price: Number(t.price_usd || t.price || 0),
@@ -795,7 +854,7 @@ function updateRecentTradesTable(trades) {
                 const vol = Number(t.volume || 0).toFixed(4);
                 return `
                     <tr>
-                        <td>${t.timestamp}</td>
+                        <td>${formatLocalTimestamp(t.timestamp, true)}</td>
                         <td><span class="sym-badge">${t.symbol}-USD</span></td>
                         <td>${priceUSD}</td>
                         <td>${priceINR}</td>
@@ -946,7 +1005,7 @@ function renderDedicatedTradesBlotter() {
             return `
                 <tr>
                     <td style="font-family: monospace; color: var(--text-secondary); font-size: 0.8rem;">#${t.id}</td>
-                    <td>${t.timestamp}</td>
+                    <td>${formatLocalTimestamp(t.timestamp, true)}</td>
                     <td><span class="sym-badge">${t.symbol}-USD</span></td>
                     <td>
                         <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:0.75rem; background: ${sideBg}; color: ${sideClass}">
@@ -1006,8 +1065,7 @@ function updateAnomalyAlertsTable(payload) {
     if (alerts && alerts.length > 0) {
         const newAlerts = alerts.map(a => {
             const sym = (a.symbol || 'BTC').replace('-USD', '');
-            const rawTime = a.alert_time ? (a.alert_time.includes(' ') ? a.alert_time.split(' ')[1] : a.alert_time) : new Date().toLocaleTimeString();
-            const cleanTime = rawTime.includes('.') ? rawTime.split('.')[0] : rawTime;
+            const cleanTime = formatLocalTimestamp(a.alert_time, true);
             const detId = a.id || `${sym}-${cleanTime}-${a.z_score || ''}`;
             return {
                 id: detId,
@@ -1038,7 +1096,7 @@ function updateAnomalyAlertsTable(payload) {
 
                 return `
                     <tr>
-                        <td>${a.alert_time}</td>
+                        <td>${formatLocalTimestamp(a.alert_time, true)}</td>
                         <td><span class="sym-badge">${a.symbol}-USD</span></td>
                         <td class="${colorClass}">${sign}${ret.toFixed(2)}%</td>
                         <td>${a.threshold.toFixed(2)}%</td>
@@ -1159,7 +1217,7 @@ function renderDedicatedAlertsPage() {
 
         return `
             <tr>
-                <td>${a.alert_time}</td>
+                <td>${formatLocalTimestamp(a.alert_time, true)}</td>
                 <td><span class="sym-badge">${a.symbol}-USD</span></td>
                 <td><strong style="color:var(--text-primary); font-size:0.82rem;">${a.classification}</strong></td>
                 <td class="${colorClass}">${sign}${ret.toFixed(2)}%</td>
@@ -2083,7 +2141,7 @@ function simulateAnomalyAlert() {
     const alertObj = {
         id: `ALT-SIM-${Date.now()}`,
         symbol: selectedSymbol,
-        alert_time: new Date().toLocaleTimeString(),
+        alert_time: formatLocalTimestamp(new Date(), true),
         price_return_pct: (Math.random() > 0.5 ? 1 : -1) * (2.4 + Math.random() * 1.5),
         threshold: 3.0,
         z_score: (3.1 + Math.random() * 1.2).toFixed(2)
@@ -2442,17 +2500,7 @@ function flashPriceUpdate(symbol, isUp) {
 }
 
 function formatTradeTimestamp(rawTs) {
-    if (!rawTs) return new Date().toTimeString().slice(0, 8);
-    if (typeof rawTs === 'string' && rawTs.length === 8 && rawTs.includes(':')) return rawTs;
-    try {
-        const str = String(rawTs);
-        const iso = str.includes('T') ? str : str.replace(' ', 'T') + 'Z';
-        const d = new Date(iso);
-        if (!isNaN(d.getTime())) {
-            return d.toTimeString().slice(0, 8);
-        }
-    } catch (e) {}
-    return String(rawTs).slice(11, 19) || new Date().toTimeString().slice(0, 8);
+    return formatLocalTimestamp(rawTs, true);
 }
 
 function handleLiveTicks(ticks) {
